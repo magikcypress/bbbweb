@@ -59,7 +59,7 @@ if (!isset($profilAction)) {
     echo $form->input(array('type' => 'password', 'name' => 'mot_passe2', 'value' => '', 'label' => 'Confirmer votre mot de passe *'));
     
     echo '<div class="tandc">';
-    echo '<input type="checkbox" name="tandc" id="tandc" value="1" /> J\'accepte les <a href="http://www.legeardweb.com/CGV">Conditions d\'utilisation</a>';
+    echo '<input type="checkbox" name="tandc" id="tandc" value="1" /> J\'accepte les <a href="#">Conditions d\'utilisation</a>';
     echo '</div>';
 
     echo $form->input(array('type' => 'submit','name' => 'submit', 'value' => 'Suivant', 'class' => 'register', 'onclick' => 'register()'));

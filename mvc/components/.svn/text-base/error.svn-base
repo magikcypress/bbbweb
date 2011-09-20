@@ -1,6 +1,0 @@
-<?php
-class errorComponent {
-    public function log($error = null) {
-        get::model('error')->logError(is_array($error) ? $error : array('error' => $error));
-    }
-}

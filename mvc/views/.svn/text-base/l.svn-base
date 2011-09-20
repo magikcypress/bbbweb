@@ -1,3 +1,0 @@
-<?php
-get::component('login')->logout('/app');
-load::redirect('/'); //removes POST values

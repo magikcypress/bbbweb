@@ -27,7 +27,7 @@ echo '<div class="header">';
 
         echo '<span class="span-14">';
             $lien_accueil = (isset($_SESSION) && array_key_exists('email', $_SESSION)) ? get::$config->SITE_URL . 'app/' : get::$config->SITE_URL;
-            echo $html->link($lien_accueil, '<img src="/images/logo_web_bbb.png" alt="Logo BigBlueButton LegeardWeb" />');
+            echo $html->link($lien_accueil, '<img src="/images/logo_bbb.png" alt="Logo BigBlueButton" />');
             //echo $html->p('Webconférence Open-source');
         echo '</span>';
 
@@ -45,7 +45,6 @@ echo $view;
 
 echo '<br class="clear" />';
 echo '<div class="footer">
-        &copy; Copyright Vincent Legeard RCS Alen&ccedil;on 499 355 725 : CNIL N&deg; 1254706';
 //uncomment the next line to show your appreciation of Vork
 echo $html->div($html->link('http://www.Vork.us', 'Super-Powered by Vork, High-Performance Framework'));
 echo '</div><!-- .footer -->';

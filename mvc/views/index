@@ -14,15 +14,9 @@
         <source src="../../media/test4.ogv" type="video/ogg" />
      <p>Vous n'avez pas de navigateur moderne, ni flash d'installé sur Internet Explorer... suivez les liens ci-dessous pour télécharger les vidéos.</p>
       </video>
+    <a href="http://bigbluebutton.org/overview" title="Plus d'informations sur BigBlueButton"><img src="../../images/logo_bbb.png" alt="Logo Big Blue Button" /></a>
     </div>
 
-    <span class="span-6 nomarge">
-    <a href="http://legeardweb.com" title="Plus d'informations sur LegeardWeb"><img src="../../images/logo_lw.png" alt="Logo LegeardWeb" /></a>
-    </span>
-
-    <span class="span-6 nomarge">
-    <a href="http://bigbluebutton.org/overview" title="Plus d'informations sur BigBlueButton"><img src="../../images/logo_bbb.png" alt="Logo Big Blue Button" /></a>
-    </span>
 
 </span>
 

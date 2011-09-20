@@ -50,6 +50,5 @@ if (!isset($profilAction)) {
 
 <span class="span-5">
     <h4>Aide</h4>
-    <p>Liste des tarifs propos&eacute;s, n'h&eacute;sitez pas &agrave; <?php echo $html->link('http://www.legeardweb.com/Contact', 'nous contacter') ?> pour plus d'informations.</p>
 
 </span>

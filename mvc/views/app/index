@@ -87,19 +87,6 @@
 <span class="span-5">
     <h4>Contact</h4>
     <div class="boite_contact">
-    <div class="telephonebloc"><span>+33 (0)974 531 049</span>
-    <div class="telephone">(gratuit depuis un poste fixe)</div></div>
-    <div class="emailbloc">
-    <a href="http://www.legeardweb.com/Contact" title="Plus d'informations" accesskey="5">depuis le formulaire</a></div>
-    <div class="vcardbloc">
-
-    <a href="http://www.legeardweb.com/LegeardWeb.vcf" rel="hcard">T&eacute;l&eacute;charger notre vcard</a></div>
-    <address>
-    <span xml:lang="fr" class="adr">
-    <span class="region">Basse Normandie</span>
-    <a class="postal-code" href="http://maps.google.fr/maps?q=61140" title="Google map">61140</a> <span class="country-name">FR</span>
-    </span>
-    </address>
     </div>
 
 </span>

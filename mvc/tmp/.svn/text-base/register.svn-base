@@ -1,7 +1,0 @@
-<?php
-class registerController {
-    public function register() {
-        get::$title = 'Enregistrer vous - Etape 1';
-
-    }
-}
