@@ -97,7 +97,6 @@ echo $view;
 
 echo '<br class="clear" />';
 echo '<div class="footer">
-        &copy; Copyright Vincent Legeard RCS Alen&ccedil;on 499 355 725 : CNIL N&deg; 1254706';
 //uncomment the next line to show your appreciation of Vork
 echo $html->div($html->link('http://www.Vork.us', 'Super-Powered by Vork, High-Performance Framework'));
 echo '</div><!-- .footer -->';
