@@ -1,0 +1,107 @@
+<?php
+    $date_day = date('Ymdhis');
+    get::$title = 'Imprimer votre facture ' . $date_day ;
+    echo $html->h1('Votre facture ' . $date_day );
+?>
+
+<div class="span-18">
+
+<p class="print" style="text-align: right;">
+    <a href="#" onclick="window.print();return false;">Imprimer la page</a>
+</p>
+
+<div id="bill_header">
+    <h3>Facture N° : <?php echo $date_day; ?></h3>
+    <h3>Date:       <?php echo get::component('date')->datetime_us_2_fr($facture['date']); ?>    </h3>
+</div>
+
+<table id="bill_infos">
+    <tr>
+
+        <td>
+            <strong>De</strong>
+            <br/>  <b>LegeardWeb</b><br />
+            4, boulevard du docteur peyré<br />
+              61140 BAGNOLES DE L'ORNE<br />
+              France<br />
+
+              RCS Alençon 499 355 725<br />
+              SIRET 499 355 725 XXXXX<br />
+              APE 6311Z - SAS au capital de 2.000EUR<br />
+              N° TVA FR60 499355725 <br />
+              support@legeard.info
+              +33.974531049
+        </td>
+        <td>
+
+            <strong>client <?php echo $_SESSION['email']; ?></strong>
+            <?php  $profil = get::model('profil')->getProfil($_SESSION['email']);
+
+            //print_r($profil);
+            foreach ($profil as $key => $value) {
+                if($key == "id_utilisateur" || $key == "newsletters") {
+                    echo '<br />';
+                } else {
+                    echo '<b>' . ucfirst($key) . '</b> : ' . $value . '<br />';
+                }
+            }
+            ?>
+
+        </td>
+    </tr>
+</table>
+    <p id="bill_date">
+        <strong>Paiement</strong>
+
+        <br/>Effectué le <?php echo get::component('date')->datetime_us_2_fr($facture['date']); ?>,&nbsp;payé par carte bancaire    </p>
+
+<div class="table" id="bill">
+    <table class="bill_detail">
+            <thead>
+                <tr>
+                    <th>Produit</th>
+                    <th>Description</th>
+                    <th>Propriétaire</th>
+                    <th>Prix</th>
+                </tr>
+            </thead>
+            <tbody>
+                    <tr>
+                     <td><?php echo $tarif['nom']; ?></td>
+                     <td><?php echo $tarif['description']; ?></td>
+                     <td><?php echo $_SESSION['email']; ?></td>
+                     <td><?php echo $tarif['prix']; ?> €</td>
+                    </tr>
+            </tbody>
+        </table>
+</div>
+
+
+<table id="summary">
+    <tr>
+        <td class="title">Prix HT</td>
+
+        <td class="price"><?php echo $tarif['prix']; ?> €        </td>
+    </tr>
+                <tr>
+            <td class="title">TVA (19.6 %)</td>
+            <td class="price"><?php echo ($tarif['prix']*1.196)-$tarif['prix']; ?> €            </td>
+        </tr>
+    <tr>
+
+        <td class="title">
+            <span class="highlight">Prix TTC&nbsp;</span>
+        </td>        <td class="price">
+            <span class="highlight"><?php echo $tarif['prix']*1.196; ?> €</span>
+        </td>
+    </tr>
+</table>
+
+<div class="print" style="text-align: right;">
+        <a href="/app/conso/<?php echo $_SESSION['email']; ?>" onclick="window.close();" >Retour à la liste des factures</a>
+</div>
+</div>
+
+
+
+

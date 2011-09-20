@@ -1,0 +1,381 @@
+<?php
+
+/**
+ * Functions required by the login controller.
+ */
+class installModel extends model  {
+    /**
+     * Table/collection name
+     * on the same database
+     * @var string
+     */
+    protected $_compteur = 'compteur';
+    protected $_connection = 'connection';
+    protected $_consommation = 'consommation';
+    protected $_parametres = 'parametres';
+    protected $_participant = 'participant';
+    protected $_planning = 'planning';
+    protected $_tarifs = 'tarifs';
+    protected $_utilisateur = 'utilisateur';
+    protected $_connexion = 'connexion';
+    protected $_salle = 'salle';
+    protected $_shorturls = 'shorturls';
+
+    /**
+     * Database type to use
+     * @var string Either sql or mongo
+     */
+    protected $_db;
+
+    /**
+     * Mongo collection object cache
+     * @var MongoCollection
+     */
+    protected $_mongo_parametres;
+    protected $_mongo_compteur;
+    protected $_mongo_tarifs;
+    protected $_mongo_shorturls;
+
+    /**
+     * Sets $this->_db and if it is Mongo then it sets the MongoDB collection
+     */
+    public function __construct() {
+        $this->_db = (!in_array('mongo', config::$modelObjects) ? 'sql' : 'mongo');
+    }
+
+    /**
+     * Switchboard to route to either SQL or Mongo methods
+     *
+     * @param string $name
+     * @param array $args
+     */
+    public function __call($name, array $args) {
+        $name = '_' . $this->_db . ucfirst($name);
+        if ($this->_db == 'mongo') {
+            $this->_mongo_parametres = $this->mongo->selectCollection($this->_parametres);
+        }
+        return call_user_func_array(array($this, $name), $args);
+    }
+
+    /**
+     * Creates the SQL database table with the minimal required columns (_id, name, email, pass)
+     */
+    protected function _sqlInit() {
+        $isMysql = (isset($dbParents['mysqli']) || isset($dbParents['mysql']));
+        // Create table utilisateur sql
+        $sql = 'create table ' . $this->_utilisateur . ' (
+                id_utilisateur int(11) unsigned not null primary key auto_increment';
+        if ($isMysql) {
+            $sql .= ' auto_increment';
+        }
+        $sql .= ', nom varchar(255) not null
+                , prenom varchar(255) not null
+                , email varchar(60) not null unique
+                , tel varchar(50) not null
+                , raison_social varchar(250) not null
+                , adresse varchar(250) not null
+                , code_postal varchar(10) not null
+                , ville varchar(255) not null
+                , mot_passe varchar(50) not null
+                , date_insertion datetime not null
+                , id_tarif int(11) not null
+                , acquitte int(5) not null
+                , validation int(5) not null
+                , newsletters int(5) not null
+                , tandc int(5) not null
+                , cle varchar(200) not null)';
+        $this->db->query($sql);
+
+        // Create table participant sql
+        $sql = 'create table ' . $this->_participant . ' (
+                id_participant int(11) unsigned not null primary key auto_increment';
+        if ($isMysql) {
+            $sql .= ' auto_increment';
+        }
+        $sql .= ', id_utilisateur int(11) not null
+                , email varchar(60) not null
+                , nom varchar(255) not null
+                , date_creation datetime not null
+                , id_meeting varchar(255) not null)';
+        $this->db->query($sql);
+
+        // Create table planning sql
+        $sql = 'create table ' . $this->_planning . ' (
+                id_planning int(11) unsigned not null primary key auto_increment';
+        if ($isMysql) {
+            $sql .= ' auto_increment';
+        }
+        $sql .= ', nom varchar(255) not null
+                , descriptif text not null
+                , date_debut datetime not null
+                , date_fin datetime not null
+                , open_salle int(11) not null
+                , id_utilisateur int(11) not null)';
+        $this->db->query($sql);
+
+        // Create table consommation sql
+        $sql = 'create table ' . $this->_consommation . ' (
+                id_consommation int(11) unsigned not null primary key auto_increment';
+        if ($isMysql) {
+            $sql .= ' auto_increment';
+        }
+        $sql .= ', date datetime not null
+                , prix float(120,0) not null
+                , id_utilisateur int(11) not null
+                , valide int(11) not null
+                , id_tarif int(11) not null
+                , expire int(11) not null)';
+        $this->db->query($sql);
+
+        // Create table tarifs sql
+        $sql = 'create table ' . $this->_tarifs . ' (
+                id_tarif int(11) unsigned not null primary key auto_increment';
+        if ($isMysql) {
+            $sql .= ' auto_increment';
+        }
+        $sql .= ', prix float(120,0) not null
+                , remise float(120,0) not null
+                , description text not null
+                , nom varchar(255) not null
+                , options varchar(255) not null
+                , date_creation datetime not null
+                , max_salle int(11) not null
+                , max_participant int(11) not null)';
+        $this->db->query($sql);
+
+        // Create table compteur sql
+        $sql = 'create table ' . $this->_compteur . ' (
+                id_compteur int(11) unsigned not null primary key auto_increment';
+        if ($isMysql) {
+            $sql .= ' auto_increment';
+        }
+        $sql .= ', id_utilisateur int(11) not null, nb_salle char(6) not null, nb_participant char(6) not null)';
+        $this->db->query($sql);
+
+        // Create table parametres sql
+        $sql = 'create table ' . $this->_parametres . ' (
+                id_parametres int(11) unsigned not null primary key auto_increment';
+        if ($isMysql) {
+            $sql .= ' auto_increment';
+        }
+        $sql .= ', urlbbb varchar(255) not null
+                , clebbb varchar(255) not null
+                , delai char(10) not null
+                , codevip char(8) not null
+                , numero_tel char(20) not null
+                , urlbbbdefaut varchar(255) not null
+                , bienvenue text not null
+                , host varchar(50) not null
+                , port char(6) not null
+                , auth char(2) not null
+                , usersmtp varchar(255) not null
+                , passsmtp varchar(255) not null)';
+        $this->db->query($sql);
+
+        // Create table connexion sql
+        $sql = 'create table ' . $this->_connexion . ' (
+                id_connexion int(11) unsigned not null primary key auto_increment';
+        if ($isMysql) {
+            $sql .= ' auto_increment';
+        }
+        $sql .= ', ip_visiteur varchar(50) not null
+                , delai char(10) not null
+                , date_connexion datetime not null
+                , id_utilisateur int(11) not null
+                , id_participant int(11) not null)';
+        $this->db->query($sql);
+
+        // Create table salle sql
+        $sql = 'create table ' . $this->_salle . ' (
+                id_salle int(11) unsigned not null primary key auto_increment';
+        if ($isMysql) {
+            $sql .= ' auto_increment';
+        }
+        $sql .= ', nom_salle varchar(50) not null
+                , nom varchar(50) not null
+                , passmd char(50) not null
+                , passap char(50) not null
+                , email char(50) not null
+                , url_moderateur char(150) not null
+                , url_fin char(150) not null
+                , date_creation datetime not null
+                , id_utilisateur int(11) not null)';
+        $this->db->query($sql);
+
+        // Insert paramètres sql
+        $sql = 'insert into ' . $this->_parametres . ' (urlbbb, clebbb, delai, codevip, numero_tel, urlbbbdefaut, bienvenue, host, port, auth, usersmtp, passsmtp )
+                    values ("' . get::$config->BBB_URL . '"
+                            , "' . get::$config->BBB_KEY . '"
+                            , ' . get::$config->BBB_DELAY . '
+                            , ' . get::$config->BBB_CODEVIP . '
+                            , "' . get::$config->BBB_SIPACCOUNT . '"
+                            , "' . get::$config->BBB_URLDEFAUT . '"
+                            , "' . get::$config->BBB_WELCOME . '"
+                            , "' . get::$config->SMTP_HOST . '"
+                            , ' . get::$config->SMTP_PORT . '
+                            , ' . get::$config->SMTP_AUTH . '
+                            , "' . get::$config->SMTP_USER . '"
+                            , "' . get::$config->SMTP_PASS . '")';
+        $this->db->query($sql);
+
+        // Insert paramètres sql
+        $sql = 'create table ' . $this->_shorturls . ' (
+                shorturl char(4) not null primary key,
+                url varchar(765) not null unique,
+                added datetime not null,
+                ip varchar(16) null)';
+        $this->db->query($sql);
+
+        $sql = 'create table ' . $this->_shorturls . '_log (
+                shorturl char(4) not null,
+                referrer varchar(255) null,
+                occurrence datetime not null,
+                ip varchar(16) null)';
+        $this->db->query($sql);
+
+        // Insert tarifs sql a l'arrache
+            $sql = 'insert into ' . $this->_tarifs . ' ( id_tarif,prix,remise,description,nom,options,date_creation,max_salle,max_participant)
+                                values(0,0,0,"1 salle max + 4 participants max","Free","","2011-03-31 11:01:01",1,4)';
+            $this->db->query($sql);
+
+            $sql = 'insert into ' . $this->_tarifs . ' ( id_tarif,prix,remise,description,nom,options,date_creation,max_salle,max_participant)
+                                values(1,5,0,"1 salle max + 15 participants max","Small","SIP, SSL","2011-03-31 11:01:01",1,15)';
+            $this->db->query($sql);
+
+            $sql = 'insert into ' . $this->_tarifs . ' ( id_tarif,prix,remise,description,nom,options,date_creation,max_salle,max_participant)
+                                values(2,70,0,"40 salles max + illimité participants + SIP mode","Medium","SSL","2011-03-31 11:01:01",40,0)';
+            $this->db->query($sql);
+
+            $sql = 'insert into ' . $this->_tarifs . ' ( id_tarif,prix,remise,description,nom,options,date_creation,max_salle,max_participant)
+                                values(3,170,0,"80 salles max + illimité participants + SIP mode","Big","SSL","2011-03-31 11:01:01",80,0)';
+            $this->db->query($sql);
+
+        // Insert tarifs sql
+//        $args = array(
+//                array('id_tarif' => 0
+//                        , 'prix' => 0
+//                        , 'remise' => 0
+//                        , 'decription' => "\"1 salle max + 4 participants max\""
+//                        , 'nom' => "\"Free\""
+//                        , 'options' => "\"\""
+//                        , 'date_creation' => "\" " . date('Y-m-d h:i:s') . " \""
+//                        , 'max_salle' => 1
+//                        , 'max_participant' => 4),
+//                array('id_tarif' => 1
+//                        , 'prix' => 5
+//                        , 'remise' => 0
+//                        , 'decription' => "\"1 salle max + 15 participants max\""
+//                        , 'nom' => "\"Small\""
+//                        , 'options' => "\"SIP, SSL\""
+//                        , 'date_creation' => "\" " . date('Y-m-d h:i:s') . " \""
+//                        , 'max_salle' => 1
+//                        , 'max_participant' => 15),
+//                array('id_tarif' => 2
+//                        , 'prix' => 70
+//                        , 'remise' => 0
+//                        , 'decription' => "\"50 salles max + illimité participants + SIP mode\""
+//                        , 'nom' => "\"Medium\""
+//                        , 'options' => "\"SSL\""
+//                        , 'date_creation' => "\" " . date('Y-m-d h:i:s') . " \""
+//                        , 'max_salle' => 40
+//                        , 'max_participant' => 0),
+//                array('id_tarif' => 3
+//                        , 'prix' => 170
+//                        , 'remise' => 0
+//                        , 'decription' => "\"80 salles max + illimité participants + SIP mode\""
+//                        , 'nom' => "\"Big\""
+//                        , 'options' => "\"SSL\""
+//                        , 'date_creation' => "\" " . date('Y-m-d h:i:s') . " \""
+//                        , 'max_salle' => 80
+//                        , 'max_participant' => 0)
+//                );
+//
+//         foreach ($args as $key => $val) {
+//             for($i=0;$i < count($val); $i++) {
+//                 foreach ($val as $k) {
+//                     $sqlKey = array_keys($val);
+//                     $sqlVal = array_values($val);
+//                     $sqlKey[] = $sqlKey[$i];
+//                     $sqlVal[] = $sqlVal[$i];
+//                 }
+//             }
+//             //print_r($sqlVal);
+//             $sql = 'insert into tarifs ( ' . implode(',', $sqlKey) . ' )
+//                                values(' . implode(',', $sqlVal) . ')';
+//
+//            $this->db->query($sql);
+        //}
+    }
+
+    //INSERT INTO `bigbluebutton_un`.`tarifs` (`id_tarif`, `prix`, `remise`, `decription`, `nom`, `options`, `date_creation`, `max_salle`, `max_participant`) VALUES (1, 2, 0, 'decription', 'nom', 'options', NOW(), 1, 1)
+
+    /**
+     * Creates the mongo collections
+     */
+    protected function _mongoInit() {
+
+        // Insert parametres mongo
+        // Insert paramètres mongo
+        // db.parametres.insert({urlbbb:'.get::$config->BBB_URL.',clebbb:"aabef67428f7sl67hjp74d9453LT9e96", ...)
+        $args = array('urlbbb' => get::$config->BBB_URL
+                , 'clebbb' => get::$config->BBB_KEY
+                , 'delai' => get::$config->BBB_DELAY
+                , 'codevip' => get::$config->BBB_CODEVIP
+                , 'numero_tel' => get::$config->BBB_SIPACCOUNT
+                , 'urlbbbdefaut' => get::$config->BBB_URLDEFAUT
+                , 'bienvenue' => get::$config->BBB_WELCOME
+                , 'host' => get::$config->SMTP_HOST
+                , 'port' => get::$config->SMTP_PORT
+                , 'auth' => get::$config->SMTP_AUTH
+                , 'usersmtp' => get::$config->SMTP_USER
+                , 'passsmtp' => get::$config->SMTP_PASS);
+
+        $this->_mongo_parametres->ensureIndex(array('clebbb'), array('unique' => true));
+        $this->_mongo_parametres->insert($args);
+
+        // Insert compteur mongo
+        $args = array('id_utilisateur' => 0
+                , 'nb_salle' => 0);
+
+        $this->_mongo_compteur->ensureIndex(array('id_utilisateur'), array('unique' => true));
+        $this->_mongo_compteur->insert($args);
+
+        // Insert tarifs mongo
+        $args = array(
+                array('prix' => 0
+                        , 'remise' => 0
+                        , 'decription' => "2 participants max + 1 modérateurs"
+                        , 'nom' => "Free"
+                        , 'options' => ""
+                        , 'date_creation' => date('Y-m-d h:i:s')
+                        , 'max_salle' => 1),
+                array('prix' => 5
+                        , 'remise' => 0
+                        , 'decription' => "15 participants max"
+                        , 'nom' => "Small"
+                        , 'options' => "SIP, SSL"
+                        , 'date_creation' => date('Y-m-d h:i:s')
+                        , 'max_salle' => 1),
+                array('prix' => 70
+                        , 'remise' => 0
+                        , 'decription' => "250 salles max + illimité participants + SIP mode"
+                        , 'nom' => "Medium"
+                        , 'options' => "SSL"
+                        , 'date_creation' => date('Y-m-d h:i:s')
+                        , 'max_salle' => 250),
+                array('prix' => 170
+                        , 'remise' => 0
+                        , 'decription' => "350 salles max + illimité participants + SIP mode"
+                        , 'nom' => "Big"
+                        , 'options' => "SSL"
+                        , 'date_creation' => date('Y-m-d h:i:s')
+                        , 'max_salle' => 350)
+                );
+
+        foreach ($args as $key => $value) {
+            $this->_mongo_tarifs->ensureIndex(array('nom'), array('unique' => true));
+            $this->_mongo_tarifs->insert($value);
+        }
+    }
+
+}

@@ -1,0 +1,5 @@
+<?php
+echo $html->div('You have been signed up for <strong>' . get::$config->SITE_NAME . '</strong><br /><br />')
+   . $html->div('Email: ' . $email)
+   . $html->div('Pass: ' . $pass)
+   . '<div style="font-size: xx-small; margin-top: 5px;">' . $html->link('http://' . $_SERVER['HTTP_HOST']) . '<div>';

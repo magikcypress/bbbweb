@@ -1,0 +1,24 @@
+<?php
+/**
+ * Account-related functionality
+ */
+class tarifComponent {
+
+    /**
+     * Récupére les tarif
+     */
+    public function listTarifs() {
+        $tarifs = get::model('app')->getTarifs();
+        return $tarifs;
+    }
+
+    /**
+     * Récupére les tarif
+     */
+    public function selectUserTarifs($email) {
+        $tarifs = get::model('app')->getUserTarifs($email);
+        return $tarifs;
+    }
+    
+
+}

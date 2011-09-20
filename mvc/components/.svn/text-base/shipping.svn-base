@@ -1,0 +1,171 @@
+<?php
+/**
+ * Shipping related tools
+ */
+class shippingComponent {
+    /**
+     * Convenience array containing an index of shipping company common appreviations
+     * @var array
+     */
+    public $shippingCompanies = array('ups' => 'United Parcel Service (UPS)', 'usps' => 'US Postal Service',
+                                   'fedex' => 'Federal Express', 'dhl' => 'DHL');
+    /**
+     * Tracking URLs for the most common US shipping companies - just append your tracking number to the end
+     * @var array
+     */
+    public $trackingLinks = array(
+        'ups' => 'http://wwwapps.ups.com/WebTracking/track?track.y=10&showMultipiece=N&trackNums=',
+        'usps' => 'http://trkcnfrm1.smi.usps.com/PTSInternetWeb/InterLabelInquiry.do?origTrackNum=',
+        'fedex' => 'http://www.fedex.com/Tracking?tracknumbers=',
+        'dhl' => 'http://track.dhl-usa.com/atrknav.asp?ShipmentNumber=',
+        'ceva' => 'http://cevalogistics.com/en/toolsresources/Pages/CEVATrak.aspx?sv=');
+
+    /**
+     * Get the URL to track a package
+     *
+     * @param string $trackingNumber
+     * @param string $service Optional, will select automatically if omitted, must be a key in $this->trackingLinks
+     * @return string
+     */
+    public function getTrackingUrl($trackingNumber, $service = null) {
+        $trackingNumber = str_replace(array(' ', '-'), '', $trackingNumber);
+        if (!$service) {
+            $len = strlen($trackingNumber);
+            if ($trackingNumber[0] . strtoupper($trackingNumber[1]) == '1Z'
+                || ($trackingNumber[0] == 'T' && $len == 11)) {
+                $service = 'ups';
+            } else if ($len > 20) {
+                $service = 'usps';
+            } else if ($len == 10 || $len == 11) {
+                $service = 'dhl';
+            } else {
+                $service = 'fedex';
+            }
+        }
+        return $this->trackingLinks[$service] . $trackingNumber;
+    }
+
+    /**
+     * Index of UPS shipping method service codes
+     * @var array
+     */
+    public $upsShipMethods = array(
+        1 => 'Next Day Air/Express Mail', 2 => '2nd Day Air/Priority Mail', 3 => 'Ground/Parcel Post',
+        7 => 'Worldwide Express/Airmail Express Mail Service (EMS)', 8 => 'Worldwide Expedited', 11 => 'Standard',
+        12 => '3-Day Select', 13 => 'Next Day Air Saver', 14 => 'Next Day Air Early AM', 54 => 'Worldwide Express Plus',
+        59 => '2nd Day Air AM', 65 => 'Express Saver');
+
+    /**
+     * Gets shipping rates from UPS
+     * You must set your UPS account credentials in the .config for this method to work
+     *
+     * @param array $args Keys are all optional, but basic info needs to be supplied to get a meaningful response
+     * from UPS. Options are: originZip, destinationZip, originCountry, destinationCountry, weight, pickupType,
+     * serviceCode, packagingType, packagingDescription
+     * @return array UPS rate data or error message; an empty array means that there are no UPS rates for your criteria
+     */
+    public function getUpsRates(array $args) {
+        $originZip = $destinationZip = '';
+        $originCountry = $destinationCountry = 'US';
+        $weight = 0;
+        $pickupType = '01';
+        $serviceCode = 11;
+        $packagingType = '02';
+        $packagingDescription = 'Package';
+        extract($args);
+
+        $xml='<?xml version="1.0"?>
+<AccessRequest xml:lang="en-US">
+   <AccessLicenseNumber>' . get::$config->UPS['xmlAccessKey'] . '</AccessLicenseNumber>
+   <UserId>' . get::$config->UPS['userid'] . '</UserId>
+   <Password>' . get::$config->UPS['password'] . '</Password>
+</AccessRequest>
+<?xml version="1.0"?>
+<RatingServiceSelectionRequest xml:lang="en-US">
+  <Request>
+    <TransactionReference>
+      <CustomerContext>Rating and Service</CustomerContext>
+      <XpciVersion>1.0001</XpciVersion>
+    </TransactionReference>
+    <RequestAction>Rate</RequestAction>
+    <RequestOption>shop</RequestOption>
+  </Request>
+  <PickupType>
+  <Code>' . $pickupType . '</Code>
+  </PickupType>
+  <Shipment>
+    <Shipper>
+      <Address>
+    <PostalCode>' . $originZip . '</PostalCode>
+	<CountryCode>' . $originCountry . '</CountryCode>
+      </Address>
+    </Shipper>
+    <ShipTo>
+      <Address>
+    <PostalCode>' . $destinationZip . '</PostalCode>
+	<CountryCode>' . $destinationCountry . '</CountryCode>
+      </Address>
+    </ShipTo>
+    <Service>
+    <Code>' . $serviceCode . '</Code>
+    </Service>
+    <Package>
+      <PackagingType>
+        <Code>' . $packagingType . '</Code>
+        <Description>' . $packagingDescription . '</Description>
+      </PackagingType>
+      <Description>Rate Shopping</Description>
+      <PackageWeight>
+        <Weight>' . ($weight < 0.1 ? 0.1 : $weight) . '</Weight>
+      </PackageWeight>
+     </Package>
+    <ShipmentServiceOptions/>
+  </Shipment>
+</RatingServiceSelectionRequest>';
+
+        $sockheader = 'POST /ups.app/xml/Rate HTTP/1.0' . PHP_EOL
+                    . 'Host: www.ups.com' . PHP_EOL
+                    . 'Content-type: application/x-www-form-urlencoded' . PHP_EOL
+                    . 'Content-length: ' . strlen($xml) . PHP_EOL
+                    . 'Accept: */*';
+
+        $fp = stream_socket_client('ssl://www.ups.com:443', $errno, $errstr, 30);
+        fwrite($fp, $sockheader . PHP_EOL . PHP_EOL . $xml . PHP_EOL . PHP_EOL);
+        while (trim(fgets($fp, 128))); //skip over the response headers
+        while (!feof($fp)) {
+            $upsResponse[] = fgets($fp, 4096);
+        }
+        fclose($fp);
+
+        $return = array();
+        $upsResponseString = implode($upsResponse);
+        $sxml = simplexml_load_string($upsResponseString);
+    	if (!(boolean) $sxml->Response->ResponseStatusCode) {
+        	$return['error'] = (string) $sxml->Response->Error->ErrorDescription;
+    	}
+
+    	foreach($sxml as $item) {
+            $serviceCode = (Int) $item->Service->Code;
+    		if ($serviceCode) {
+    		    $options = array('price' => (string) $item->TotalCharges->MonetaryValue,
+                        		 'guaranteedDaysToDelivery' => (string) $item->GuaranteedDaysToDelivery,
+                        		 'scheduledDeliveryTime' => (string) $item->ScheduledDeliveryTime,
+                        		 'raw' => $item);
+    		    $options['shipMethod'] = (isset($this->upsShipMethods[$serviceCode])
+                                          ? $this->upsShipMethods[$serviceCode]
+                                          : 'UPS Service ' . $serviceCode);
+                $return['optionsArray'][$serviceCode] = $options;
+
+                $return['options'][$serviceCode] = $options['price'] . ' - ' . $options['shipMethod'];
+                if ($options['guaranteedDaysToDelivery']) {
+                    $return['options'][$serviceCode] .= ' guaranteed delivery in '
+                                                     . $options['guaranteedDaysToDelivery'] . 'days';
+                    if ($options['scheduledDeliveryTime']) {
+                        $return['options'][$serviceCode] .= ' by ' . $options['scheduledDeliveryTime'];
+                    }
+                }
+    		}
+    	}
+        return $return;
+    }
+}

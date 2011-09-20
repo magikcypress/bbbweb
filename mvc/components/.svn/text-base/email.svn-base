@@ -1,0 +1,69 @@
+<?php
+/**
+ * Email-sending functionality
+ */
+class emailComponent {
+
+    /**
+    * Test validate email
+    *
+    * @param     integer $email value test
+    * @return    integer 
+    * @access    public
+    */
+    public function validateEmail($email)
+    {
+        return (preg_match("/^[_\.0-9a-zA-Z-]+@([0-9a-zA-Z][0-9a-zA-Z-]+\.)+[a-zA-Z]{2,6}$/i",$email));
+    }
+
+    /**
+     * Sends an email.
+     *
+     * Required argument keys are: to, from, subject, body
+     * Optional keys are: fromName, (boolean) html, (array) headers
+     * Use Pear http://pear.php.net/manual/en/package.mail.mail.factory.php
+     *
+     * @param array $args
+     * @return boolean Success status sending email
+     */
+    public static function sendEmail(array $args) {
+        //ini_set('error_reporting', 'E_ALL | E_STRICT');
+
+        require_once '../lib/Mail/Mail.php';
+        
+        /* mail setup recipients, subject etc */
+        $recipients = $args['to'];
+        $headers['from'] = 'From: ';
+        if (isset($args['fromName'])) {
+            $headers['from'] .= '"' . $args['fromName'] . '" ';
+        }
+        $headers['from'] .= '<' . $args['from'] . ">\r\n";        
+        $headers["to"] = $args['to'] . ' <' . $args['to'] . '>';
+        $headers["subject"] = $args['subject'];
+        $mailmsg = $args['body'];
+
+        $driver = 'smtp';
+
+        if($driver == 'smtp') {
+            $parametres = get::model('app')->getParaSmtp();
+            $paramsmail["host"] = $parametres[1]['host'];
+            $paramsmail["port"] = $parametres[1]['port'];
+            $paramsmail["auth"] = $parametres[1]['auth'];
+            $paramsmail["username"] = $parametres[1]['usersmtp'];
+            $paramsmail["password"] = $parametres[1]['passsmtp'];
+        } else {
+            // if mail()
+            $paramsmail = '';
+        }
+
+        /* Create the mail object using the Mail::factory method */
+        $mail_object =& Mail::factory($driver, $paramsmail);
+        /* Ok send mail */
+        $mail_object->send($recipients, $headers, $mailmsg);
+
+        
+        return;
+    }
+
+
+}

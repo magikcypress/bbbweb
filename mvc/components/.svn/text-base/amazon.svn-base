@@ -1,0 +1,108 @@
+<?php
+/**
+ * Interface to Amazon Web Services
+ */
+class amazonComponent {
+    /**
+     * Cache storing the last response from AWS
+     * @var object
+     */
+    public $lastResponse;
+
+    /**
+     * Response group as defined by the AWS API (item types that you want to get back from their web service)
+     * @var array
+     */
+    public $responseGroup = array('ItemAttributes', 'Images');
+
+    /**
+     * Connects to Amazon Web Services to get products by ASIN/ISBN
+     *
+     * @param string $asin
+     * @param boolean $isbn13
+     * @return string XML response
+     */
+    public function getProductByAsin($asin, $isbn13 = false) {
+        $params = array('Service' => 'AWSECommerceService',
+                        'ResponseGroup' => implode(',', $this->responseGroup),
+                        'AWSAccessKeyId' => get::$config->AMAZON['accessKey'],
+                        'Operation' => 'ItemLookup',
+                        'AssociateTag' => get::$config->AMAZON['id'],
+                        'Timestamp' => gmdate('Y-m-d\TH:i:s') . '.000Z',
+                        'Version' => '2009-03-31',
+                        'ItemId' => (!is_array($asin) ? $asin : implode(',', $asin)));
+        if ($isbn13) {
+            $params['IdType'] = 'EAN';
+            $params['SearchIndex'] = 'Books';
+        }
+        ksort($params);
+        foreach ($params as $key => $val) {
+            $encoded[] = str_replace('%7E', '~', rawurlencode($key))
+                       . '=' . str_replace('%7E', '~', rawurlencode($val));
+        }
+        $request = implode('&', $encoded);
+        $host = 'ecs.amazonaws.com';
+        $path = '/onca/xml';
+        $signature = "GET\n" . $host . "\n" . $path . "\n" . $request;
+        $signature = urlencode(base64_encode(hash_hmac('sha256', $signature, get::$config->AMAZON['secretKey'], true)));
+        $url = 'http://' . $host . $path . '?' . $request . '&Signature=' . $signature;
+        $this->lastResponse = simplexml_load_string(file_get_contents($url));
+        return $this->lastResponse;
+    }
+
+    /**
+     * Internal sorting function to properly alphabetize the combined results of Amazon Web Services and cache response
+     *
+     * @param string $a
+     * @param string $b
+     * @return int
+     */
+    protected static function _titleSort($a, $b) {
+        return strcasecmp($a['title'], $b['title']);
+    }
+
+    /**
+     * Pass in one string or an array of ASIN or ISBN and get the items returned back
+     * This is a wrapper method that simplifies the access and return data to $this->getProductByAsin
+     *
+     * @param string $asin
+     * @param boolean $isbn13
+     * @param boolean $getErrors
+     * @return array
+     */
+    public function getTitlesByAsin($asin, $isbn13 = false, $getErrors = false) {
+        $amazon = get::model('amazon');
+        $titles = $amazon->getCache($asin);
+        if (!is_array($asin)) {
+            $asin = (isset($titles[$asin]) ? false : $asin);
+        } else {
+            $asin = array_diff($asin, array_keys($titles));
+        }
+        if ($asin) {
+            $xml = $this->getProductByAsin($asin, $isbn13);
+            if ($xml && property_exists($xml->Items, 'Item')) {
+                foreach ($xml->Items->Item as $item) {
+                    $thisAsin = (string) $item->ASIN;
+                    $titles[$thisAsin]['title'] = $item->ItemAttributes->Title;
+                    $titles[$thisAsin]['url'] = $item->DetailPageURL;
+                    $titles[$thisAsin]['thumbnail'] = array('src' => $item->SmallImage->URL,
+                                                            'height' => $item->SmallImage->Height,
+                                                            'width' => $item->SmallImage->Width,
+                                                            'alt' => $titles[$thisAsin]['title']);
+                }
+            }
+            if ($getErrors && property_exists($xml->Items->Request, 'Errors')) {
+                foreach ($xml->Items->Request->Errors->Error as $Error) {
+                    if ($Error->Code == 'AWS.InvalidParameterValue') {
+                        $asin = substr($Error->Message, 0, strpos($Error->Message, ' '));
+                        $titles[(string) $asin]['error'] = $Error->Message;
+                    }
+                }
+            } else {
+                $amazon->updateCache($titles);
+            }
+            uasort($titles, array('self', '_titleSort'));
+        }
+        return $titles;
+    }
+}

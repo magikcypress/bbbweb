@@ -1,0 +1,7 @@
+<?php
+header('Cache-Control: no-cache, must-revalidate');
+header('Expires: Mon, 01 Jan 2000 01:00:00 GMT');
+if (isset($json) && $json) {
+    header('Content-type: application/json');
+    echo (!is_array($json) && !is_object($json) ? $json : json_encode($json));
+}

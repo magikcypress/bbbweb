@@ -1,0 +1,240 @@
+<?php
+class appModel {
+
+    /**
+     * Database type to use
+     * @var string Either sql or mongo
+     */
+    protected $_db;
+
+    /**
+     * Sets $this->_db and if it is Mongo then it sets the MongoDB collection
+     */
+    public function __construct() {
+        $this->_db = 'sql';
+    }
+
+    /**
+     * Switchboard to route to either SQL or Mongo methods
+     *
+     * @param string $name
+     * @param array $args
+     */
+    public function __call($name, array $args) {
+        $name = '_' . $this->_db . ucfirst($name);
+        return call_user_func_array(array($this, $name), $args);
+    }
+
+    /**
+     * Get Planning
+     */
+    public function _sqlgetPlanning() {
+        $sql = 'select p.id_planning, p.nom, p.descriptif, p.date_debut, p.date_fin, p.open_salle from planning as p, utilisateur as i where p.id_utilisateur = i.id_utilisateur AND i.email = ' . $this->db->cleanString(mvc::$params[0]);
+        $res = $this->db->query($sql);
+        while ($row = $res->fetch_assoc()) {
+            $planning[$row['id_planning']] = array('id_planning' => $row['id_planning'], 'nom' => $row['nom'], 'date_debut' => $row['date_debut'], 'date_fin' => $row['date_fin'], 'descriptif' => $row['descriptif'], 'open_salle' => $row['open_salle']);
+        }
+        if(isset($planning)) return $planning;
+    }
+
+    /**
+     * Cron Groupe
+     */
+    public function _sqlgetCron() {
+        $sql = 'select id_planning, nom, date_debut, date_fin from planning where open_salle=1';
+        $res = $this->db->query($sql);
+        while ($row = $res->fetch_assoc()) {
+            $cron[$row['id_planning']] = array('id_planning' => $row['id_planning'], 'nom' => $row['nom'], 'date_debut' => $row['date_debut'], 'date_fin' => $row['date_fin']);
+        }
+        if(isset($cron)) return $cron;
+    }
+
+    /**
+     * Delete Groupe
+     */
+    public function _sqldeletePlanning() {
+        $sql = 'delete from planning where id_planning=' . $this->db->cleanString(mvc::$params[1]);
+        $this->db->query($sql);
+    }
+
+    /**
+     * Get Participant
+     */
+    public function _sqlgetParticipant($id_meeting) {
+        
+        $sql = 'select id_participant, id_utilisateur, email, nom from participant where id_meeting=' . $this->db->cleanString($id_meeting);
+        $res = $this->db->query($sql);
+        while ($row = $res->fetch_assoc()) {
+            $participant[$row['id_participant']] = array('nom' => $row['nom'], 'email' => $row['email']);
+        }
+        if(isset($participant)) 
+            return $participant;
+        else
+            return;
+    }
+
+    /**
+     * Get Profil
+     */
+    public function _sqlgetProfil($email) {
+        $sql = 'select id_utilisateur, nom, prenom, email, tel, raison_social, adresse, code_postal, ville, newsletters from utilisateur where email=?';
+        $res = $this->db->pquery($sql, $email);
+        return $res->fetch_assoc();
+    }
+
+    /**
+     * Get Conso
+     */
+    public function _sqlgetConso($email) {
+        $sql = 'select id_utilisateur from utilisateur where email=' . $this->db->cleanString($email);
+        $res = $this->db->query($sql);
+        $row = $res->fetch_assoc();
+        $sql = 'select id_consommation, date, prix from consommation where id_utilisateur=' . $this->db->cleanString($row['id_utilisateur']);
+        $res = $this->db->query($sql);
+        while ($row = $res->fetch_assoc()) {
+            $conso[$row['id_consommation']] = array('id_consommation' => $row['id_consommation'],'date' => $row['date'], 'prix' => $row['prix']);
+        }
+        return $conso;
+    }
+
+    /**
+     * Get tarifs
+     */
+    public function _sqlgetTarifs() {
+        $sql = 'select id_tarif, prix, remise, description, nom, options from tarifs';
+        $res = $this->db->query($sql);
+        while ($row = $res->fetch_assoc()) {
+            $tarifs[$row['id_tarif']] = array('id_tarif' => $row['id_tarif'], 'prix' => $row['prix'], 'remise' => $row['remise'], 'description' => $row['description'], 'nom' => $row['nom'], 'options' => $row['options']);
+        }
+        return $tarifs;
+    }
+
+    /**
+     * Get tarifs
+     */
+    public function _sqlgetUserTarifs($email) {
+        $sql = 'select id_tarif from utilisateur where email=' . $this->db->cleanString($email);
+        $res = $this->db->query($sql);
+        $row = $res->fetch_assoc();
+        return $row;
+    }
+
+     /**
+     * Get register user day
+     */
+    public function _sqlgetUserRegisterDay($email) {
+        $sql = 'select date_insertion from utilisateur where email=' . $this->db->cleanString($email);
+        $res = $this->db->query($sql);
+        $row = $res->fetch_assoc();
+        return $row;
+    }
+
+    /**
+     * Get Salle
+     */
+    public function _sqlgetSalle($id_utilisateur) {
+        $sql = 'select nb_salle from compteur where id_utilisateur=' . (int) $id_utilisateur;
+        $res = $this->db->query($sql);
+        $row = $res->fetch_assoc();
+        $num = count($row);
+    }
+
+    /**
+     * Get Max Salle by tarif
+     */
+    public function _sqlgetMaxSalle($id_tarif) {
+        $sql = 'select max_salle from tarifs where id_tarif=' . (int) $id_tarif;
+        $res = $this->db->query($sql);
+        return $res->fetch_assoc();
+    }
+
+    /**
+     * Get Paramètres
+     */
+    public function _sqlgetPara() {
+        $sql = 'select id_parametres, urlbbb, clebbb, delai, codevip, numero_tel, urlbbbdefaut, bienvenue from parametres';
+        $res = $this->db->query($sql);
+        while ($row = $res->fetch_assoc()) {
+            $parametres[$row['id_parametres']] = array('urlbbb' => $row['urlbbb'], 'clebbb' => $row['clebbb'], 'delai' => $row['delai'], 'codevip' => $row['codevip'], 'numero_tel' => $row['numero_tel'], 'bienvenue' => $row['bienvenue'], 'urlbbbdefaut' => $row['urlbbbdefaut']);
+        }
+        return $parametres;
+    }
+
+    /**
+     * Get Paramètres SMTP
+     */
+    public function _sqlgetParaSmtp() {
+        $sql = 'select id_parametres, host, port, auth, usersmtp, passsmtp from parametres';
+        $res = $this->db->query($sql);
+        while ($row = $res->fetch_assoc()) {
+            $parametres[$row['id_parametres']] = array('host' => $row['host'], 'port' => $row['port'], 'auth' => $row['auth'], 'usersmtp' => $row['usersmtp'], 'passsmtp' => $row['passsmtp']);
+        }
+        return $parametres;
+    }
+
+    /**
+     * Add Group
+     */
+    public function _sqladdPlanning(array $args) {
+        $args = $this->db->cleanString($args);
+        foreach ($args as $key => $val) {
+            $sqlKey[] = $key;
+            $sqlval[] = $val;
+        }
+        $sql = 'insert into planning (' . implode(',', $sqlKey) . ') values(' . implode(',', $sqlval) . ')';
+        $this->db->query($sql);
+    }
+
+    /**
+     * Add Participant
+     */
+    public function _sqladdParticipant(array $args) {
+        $args = $this->db->cleanString($args);
+        foreach ($args as $key => $val) {
+            $sqlKey[] = $key;
+            $sqlval[] = $val;
+        }
+        $sql = 'insert into participant (' . implode(',', $sqlKey) . ') values(' . implode(',', $sqlval) . ')';
+        $this->db->query($sql);
+
+    }
+
+     /**
+     * Update Profil
+     */
+    public function _sqlupdateProfil($email, array $args) {
+        $args = $this->db->cleanString($args);
+        foreach ($args as $key => $val) {
+            $sqlCols[] = $key . '=' . $val;
+        }
+        $sql = 'update utilisateur set ' . implode(',', $sqlCols) . ' where email=' . $this->db->cleanString($email);
+        $this->db->query($sql);
+    }
+
+    /**
+     * Add compteur
+     */
+    public function _sqladdCompte(array $args) {
+        $args = $this->db->cleanString($args);
+        foreach ($args as $key => $val) {
+            $sqlKey[] = $key;
+            $sqlval[] = $val;
+        }
+        $sql = 'insert into compteur (' . implode(',', $sqlKey) . ') values(' . implode(',', $sqlval) . ')';
+        $this->db->query($sql);
+
+    }
+
+     /**
+     * Update Profil
+     */
+    public function _sqlupdateTarif($email, array $args) {
+        $args = $this->db->cleanString($args);
+        foreach ($args as $key => $val) {
+            $sqlCols[] = $key . '=' . $val;
+        }
+        $sql = 'update utilisateur set ' . implode(',', $sqlCols) . ' where email=' . $this->db->cleanString($email);
+        $this->db->query($sql);
+    }
+
+}

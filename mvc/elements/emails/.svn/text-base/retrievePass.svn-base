@@ -1,0 +1,5 @@
+<?php
+echo $html->h2('Your <strong>' . get::$config->SITE_NAME . '</strong> account info<br /><br />')
+   . $html->div('Email: ' . $email)
+   . $html->div('Pass: ' . $pass)
+   . '<div style="font-size: small; margin-top: 5px;">' . $html->link('http://' . $_SERVER['HTTP_HOST']) . '<div>';

@@ -1,0 +1,76 @@
+<?php
+/**
+ * Compter participant et salles functionality
+ */
+class comptageComponent {
+
+    /**
+     * Total salle crée api
+     * @return num
+     */
+    public function totalSalles() {
+        $parametres = get::model('divers')->getPara();
+        $return['activity_room'] = get::component('bbbapi')->getMeetingsArray( $parametres[1]['urlbbb'], $parametres[1]['clebbb'] );
+        //print_r($return['activity_room']);
+        if($return['activity_room']['message'] == "no meetings were found on this server") {
+            $return['nb_salle'] = '0';
+        } else {
+            $return['nb_salle'] = count($return['activity_room']);
+        }
+        return $return;
+    }
+
+    /**
+     * Total particpant en ligne api
+     * @return num
+     */
+    public function totalParticipants() {
+        $parametres = get::model('divers')->getPara();
+        $return['get_room'] = get::component('bbbapi')->getMeetings( $parametres[1]['urlbbb'], $parametres[1]['clebbb'] );
+        $return['get_room'] = simplexml_load_string($return['get_room']);
+        if($return['get_room'] = "no meetings were found on this server") {
+            $return['get_room'] = '0';
+        } else {
+            foreach ($return['get_room']->meeting as $meeting) {
+                    $return['get_room'] = $meeting->participantCount;
+            }
+            //$return['get_room'] = count($return['get_room']);
+        }
+        return $return;
+
+    }
+
+    /**
+     * Total salle crée sql
+     * @return num
+     */
+    public function totalSallesSql() {
+        $total_salle = get::model('consommation')->getMaxSalle();
+
+        return $return;
+    }
+
+    /**
+     * Total particpant en ligne api
+     * @return num
+     */
+    public function totalParticipantsSql() {
+        $parametres = get::model('consommation')->getPara();
+
+        return $return;
+    }
+
+
+    public function droitCreationSalle() {
+        $nb_salle = get::model('divers')->getSalleUser($_SESSION['id_utilisateur']);
+        $nb_salle_max = get::model('consommation')->getMaxSalle($_SESSION['id_tarif']);
+        return (boolean) ($nb_salle['nb_salle'] < $nb_salle_max['max_salle']) ? true : false;
+    }
+
+    public function droitCreationParticipant() {
+        $nb_participant = get::model('divers')->getParticipantUser($_SESSION['id_utilisateur']);
+        $nb_participant_max = get::model('consommation')->getMaxParticipant($_SESSION['id_tarif']);
+        return (boolean) ($nb_participant['nb_participant'] < $nb_participant_max['max_participant']) ? true : false;
+    }
+        
+}

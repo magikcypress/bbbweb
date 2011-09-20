@@ -1,0 +1,101 @@
+<?php
+/**
+ * Generates an RSS 2.0 feed
+ *
+ * String variables are:
+ * $title, $baseUrl, $description (or alias $head['meta']['description'])
+ *
+ * The articles to syndicate should be sent in the $articles array, each article needs a key for:
+ * title, urlname, description, fullname, publishedDateTime
+ */
+
+if (!isset($baseUrl)) {
+    $baseUrl = 'http://' . get::$config->SITE_DOMAIN;
+} else if ($baseUrl[(strlen($baseUrl) - 1)] == '/') {
+    $baseUrl = substr($baseUrl, 0, -1);
+}
+
+//$logo = $baseUrl . '/images/YOURLOGO.jpg';
+
+$feedUrl = $baseUrl . '/' . mvc::$controller;
+if (mvc::$action != 'index') {
+    $feedUrl .= '/' . mvc::$action;
+}
+if (isset(mvc::$params[0])) {
+    $feedUrl .= '/' . implode('/', mvc::$params);
+}
+$atomFeed = '?feed=atom';
+if (isset($_GET) && $_GET) {
+    $atomFeed .= '&amp;' . http_build_query($_GET, '', '&amp;');
+}
+
+if (!isset($description) && isset($head['meta']['description'])) {
+    $description = $head['meta']['description'];
+}
+
+if (!isset($_GET['feed']) || $_GET['feed'] != 'atom') {
+    header('Content-Type: application/rss+xml');
+    echo '<' . '?xml version="1.0" encoding="utf-8"?' . '>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:dc="http://purl.org/dc/elements/1.1/">
+    <channel>
+        <title>' . $title . '</title>
+        <description><![CDATA[' . $description . ']]></description>
+        <link>' . $baseUrl . '</link>
+        <lastBuildDate>' . date('r') . '</lastBuildDate>
+        <atom:link href="' . $feedUrl . $atomFeed . '" rel="self" type="application/atom+xml" />';
+    if (isset($logo)) {
+        echo '
+        <image>
+            <url>' . $logo . '</url>
+            <title>' . $title . '</title>
+            <link>' . $baseUrl . '</link>
+            <description>' . $title . '</description>
+        </image>';
+    }
+
+    foreach ($articles as $article) {
+        echo '
+        <item>
+            <title>' . get::htmlentities($article['title']) . '</title>
+            <link>' . $baseUrl . '/' . $article['urlname'] . '</link>
+            <guid>' . $baseUrl . '/' . $article['urlname'] . '</guid>
+            <description><![CDATA[' . get::htmlentities($article['description']) . ']]></description>
+            <dc:creator>' . get::htmlentities($article['fullname']) . '</dc:creator>
+            <pubDate>' . date('r', strtotime($article['publishedDateTime'])) . '</pubDate>
+        </item>';
+    }
+    echo '
+    </channel>
+</rss>';
+} else {
+    header('Content-Type: application/atom+xml');
+    echo '<' . '?xml version="1.0" encoding="utf-8"?' . '>
+<feed xmlns="http://www.w3.org/2005/Atom">
+    <title>' . $title . '</title>
+    <subtitle type="html"><![CDATA[' . $description . ']]></subtitle>
+    <link href="' . $baseUrl . '" />
+    <updated>' . date('Y-m-d\TH:i:s\Z') . '</updated>
+    <id>' . strtolower($feedUrl) . '</id>
+    <link href="' . $feedUrl . $atomFeed . '" rel="self" type="application/atom+xml" />
+    <link href="' . $baseUrl . '" rel="alternate" type="text/html" />';
+    if (isset($logo)) {
+        echo '
+    <logo>' . $logo . '</logo>';
+    }
+
+    foreach ($articles as $article) {
+        echo '
+    <entry>
+        <id>' . strtolower($baseUrl . '/' . $article['urlname']) . '</id>
+        <title>' . get::htmlentities($article['title']) . '</title>
+        <link href="' . $baseUrl . '/' . $article['urlname'] . '" />
+        <summary type="html"><![CDATA[' . get::htmlentities($article['description']) . ']]></summary>
+        <updated>' . date('Y-m-d\TH:i:s\Z', strtotime($article['publishedDateTime'])) . '</updated>
+        <author>
+            <name>' . get::htmlentities($article['fullname']) . '</name>
+        </author>
+    </entry>';
+    }
+    echo '
+</feed>';
+}

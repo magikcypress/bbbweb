@@ -1,0 +1,192 @@
+<?php
+/**
+ * This comes from the May 2007 php|architect article:
+ * Unifying Server-Side and Client-Side Input Validation
+ */
+class ValidatedField {
+    protected $_label, $_validation;
+
+    public function __construct($label, $validation) {
+        $this->_label = $label;
+        $this->_validation = $validation;
+    }
+
+    public function __call($name, $val) {
+        if (strpos($name, 'get') === 0) {
+        $property = '_' . strtolower($name[3]) . substr($name, 4);
+            if (isset($this->$property)) {
+                return $this->$property;
+            } else {
+            $error_message = 'There is no property defined as ' . $property
+                           . ' or method called ' . $name
+                           . ' in the ' . __CLASS__ . ' class';
+            }
+        } else {
+            $error_message = 'Call to undefined method ' . __CLASS__ . '::' . $name . '()';
+        }
+
+        if (isset($error_message)) {
+            trigger_error($error_message, E_USER_ERROR);
+        }
+    }
+}
+
+class Validator {
+    protected $_validatedFields = array();
+
+    protected $_commonRegex = array(
+        'match' => array(
+            'HexColor' => '/^#?([\dA-F]{3}){1,2}$/i',
+            'UsTelephone' => '/^\(?([2-9]\d{2})\)?[\.\s-]?([2-4|6-9]\d\d|5([0-4|6-9]\d|\d[0-4|6-9]))[\.\s-]?(\d{4})$/',
+            'Email' => '/(^[\w\.!#$%"*+\/=?`{}|~^-]+)@(([-\w]+\.)+[A-Za-z]{2,})$/',
+            'Url' => '/^(https?|ftp):\/\/([-\w]+\.)+[A-Za-z]{2,}(:\d+)?([\\\\\/]\S+)*?[\\\\\/]?(\?\S*)?$/i',
+            'Integer' => '/^-?\d+$/',
+            'Numeric' => '/^-?(\d*\.)?\d+$/',
+            'AlphaNumeric' => '/^[\w\s]+$/i'),
+        'get' => array(
+            'Integer' => '/\d+/',
+            'Numeric' => '/\d+(\.\d+)?/',
+            'Trim' => '/^\s*(.*?)\s*$/')
+    );
+
+    protected $_validCssColors = array(
+        'aqua' => '00FFFF',
+        'black' => '000000',
+        'blue' => '0000FF',
+        'fuchsia' => 'FF00FF',
+        'gray' => '808080',
+        'green' => '008000',
+        'lime' => '00FF00',
+        'maroon' => '800000',
+        'navy' => '000080',
+        'olive' => '808000',
+        'purple' => '800080',
+        'red' => 'FF0000',
+        'silver' => 'C0C0C0',
+        'teal' => '008080',
+        'white' => 'FFFFFF',
+        'yellow' => 'FFFF00'
+    );
+
+    public function getCommonData($dataType) {
+        switch ($dataType) {
+            case 'commonRegex':
+                $x = -1;
+                $return = '{';
+                foreach ($this->_commonRegex as $matchType => $regexArray) {
+                    $y = -1;
+                    if (++$x) {
+                        $return .= ', ' . PHP_EOL;
+                    }
+                    $return .= "'" . $matchType . "': {" . PHP_EOL;
+                    foreach ($regexArray as $key => $regexString) {
+                        if (++$y) {
+                            $return .= ', ' . PHP_EOL;
+                        }
+                        $return .= "'" . $key . "': " . $regexString;
+                        if ($matchType == 'get') {
+                            $return .=  'g';
+                        }
+                    }
+                    $return .= "}";
+                }
+                $return .= '}';
+                break;
+            case 'validations':
+                $return = array();
+                foreach ($this->_validatedFields as $formId => $validatedArray) {
+                    foreach ($validatedArray as $inputId => $obj) {
+                        $return[$formId][$inputId] = $obj->getValidation();
+                    }
+                }
+                $return = json_encode($return);
+                break;
+        }
+        return $return;
+    }
+
+    public function isValidNumeric($val) {
+        return is_numeric($val);
+    }
+
+    public function isValidInteger($val) {
+        return (is_numeric($val) && $val == intval($val));
+    }
+
+    public function getNumbersOnly($val, $integerOnly = 0) {
+        $regexType = ($integerOnly ? 'Integer' : 'Numeric');
+        preg_match_all($this->_commonRegex['get'][$regexType], $val, $matches);
+        return implode($matches[0]);
+    }
+
+    public function isValidTelephone($val, $country = 'US') {
+        if (strtoupper($country) == 'US') {
+            $return = (preg_match($this->_commonRegex['match']['UsTelephone'], $val));
+        } else {
+            $return = (strlen($this->getNumbersOnly($val)) > 6);
+        }
+        return $return;
+    }
+
+    public function isValidHexColor($val) {
+        if (isset($this->_validCssColors[$val])) {
+            $val = '#' . $this->_validCssColors[$val];
+        }
+        return $this->__call('isValidHexColor', array($val));
+    }
+
+    public function setValidatedField($formId, $inputId, $label, $validation) {
+        $this->_validatedFields[$formId][$inputId] = new ValidatedField($label, $validation);
+    }
+
+    public function getClosingJs() {
+        return 'var validations = ' . $this->getCommonData('validations') . ';
+var thisFormId;
+for (var formId in validations) {
+    thisFormId = Validator.dom(formId);
+    if (thisFormId) {
+        thisFormId.onsubmit = function() {
+            return Validator.validateForm(formId);
+        }
+    }
+}';
+    }
+
+    public static $errors = array();
+
+    public function getErrorsFromPost($formId) {
+        self::$errors[$formId] = array();
+        if (isset($_POST[key($this->_validatedFields[$formId])])) {
+            foreach ($this->_validatedFields[$formId] as $inputId => $obj) {
+                $_POST[$inputId] = trim($_POST[$inputId]);
+                if (!$this->{$obj->getValidation()}($_POST[$inputId])) {
+                    self::$errors[$formId][$inputId] = $obj->getLabel() . ' is not valid';
+                }
+            }
+        }
+    }
+
+    public function __call($name, $val) {
+        $triggerError = true;
+        if (strpos($name, 'isValid') === 0) {
+            $regexType = substr($name, 7);
+            if (isset($this->_commonRegex['match'][$regexType])) {
+                return preg_match($this->_commonRegex['match'][$regexType], current($val));
+                $triggerError = false;
+            }
+        } else if (strpos($name, 'set') === 0) {
+            $this->{'_' . strtolower($name[3]) . substr($name, 4)} = current($val);
+            $triggerError = false;
+        } else if (strpos($name, 'get') === 0) {
+            $property = '_' . strtolower($name[3]) . substr($name, 4);
+            if (isset($this->$property)) {
+                return $this->$property;
+                $triggerError = false;
+            }
+        }
+
+        if ($triggerError) {
+            trigger_error('Call to undefined method ' . __CLASS__ . '::' . $name . '()', E_USER_ERROR);
+        }
+    }
+}

@@ -1,0 +1,12 @@
+<?php
+     get::$title = 'Bienvenue sur bbb';
+     echo $html->h1('Email de confirmation envoyé');
+?>
+    
+<div class="span-14">
+<p>Nous venons de vous envoyer un courriel.</p>
+<p>Dans le courriel, vous trouverez un lien qui vous ramènera sur le site afin que vous puissiez configurer votre mot de passe et commencer à utiliser l'application.</p>
+<p>Si pour quelque raison vous ne recevez pas l'email d'activation dans les 24 heures, contactez-nous au support@<?php echo get::$config->SITE_DOMAIN; ?>, et nous ferons de notre mieux pour vous remettre sur les rails.</p>
+<p>Nous vous invitons à vérifier votre dossier spam et ajouter donotreply@<?php echo get::$config->SITE_DOMAIN; ?> à votre carnet d'adresse / liste blanche avant de nous contacter, car il est très fréquent d'avoir des problèmes de livraison par courrier électronique en raison de filtres automatiques.</p>
+
+</div>

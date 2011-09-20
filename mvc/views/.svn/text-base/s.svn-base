@@ -1,0 +1,13 @@
+<?php
+     get::$title = 'Bienvenue sur bbb';
+     echo $html->h1('Email de confirmation envoyé');
+?>
+    
+<div class="span-14">
+    <?php
+     echo $html->h2('Nous venons de vous envoyer un email de confirmation, regarder dans la boite à spam on sait jamais !');
+
+     ?>
+
+
+</div>

@@ -1,0 +1,82 @@
+<?php
+    get::$title = 'Enregistrement - Etape Final';
+    echo $html->h1('Enregistrer vous');
+?>
+    
+<div class="span-14">
+
+<?php
+if (!isset($profilAction)) {
+    $profilAction = get::url(array('ssl' => false));
+
+            if (isset($_POST['submit'])) {
+                // Updater l'utilisateur
+                $args = array('nom' => $_POST['nom'],
+                                'prenom' => $_POST['prenom'],
+                                'raison_social' => $_POST['raison_social'],
+                                'adresse' => $_POST['adresse'],
+                                'code_postal' => $_POST['code_postal'],
+                                'ville' => $_POST['ville'],
+                                'newsletters' => $_POST['newsletters'],
+                                'validation' => 1);
+                $return['data'] = get::model('register')->UpdateRegister($_POST['k'], $args);
+                load::redirect('/f'); //removes POST values
+                return;
+            }
+
+    // Test info
+    if (isset($_POST['nom']) && empty($_POST['nom'])) {
+        $_POST['errors']['nom'] = 'Votre nom n\'est pas inséré';
+    }
+    if (isset($_POST['prenom']) && empty($_POST['prenom'])) {
+        $_POST['errors']['prenom'] = 'Votre prénom n\'est pas inséré';
+    }
+    if (isset($_POST['societe']) && empty($_POST['societe'])) {
+        $_POST['errors']['societe'] = 'Votre raison sociale n\'est pas inséré';
+    }
+    if (isset($_POST['email']) && empty($_POST['email'])) {
+        $_POST['errors']['email'] = 'Votre email n\'est pas inséré';
+    }
+    if (isset($_POST['raison_social']) && empty($_POST['raison_social'])) {
+        $_POST['errors']['raison_social'] = 'Votre raison sociale n\'est pas inséré';
+    }
+    if (isset($_POST['code_postal']) && empty($_POST['code_postal'])) {
+        $_POST['errors']['code_postal'] = 'Votre code postal n\'est pas inséré';
+    }
+    if (isset($_POST['ville']) && empty($_POST['ville'])) {
+        $_POST['errors']['ville'] = 'Votre ville n\'est pas inséré';
+    }
+}
+
+if(!empty($_GET['k'])) {
+
+    if(get::model('register')->ValidRegister($_GET['k'])) {
+
+    echo $form->open(array('action' => 'register2', 'method' => 'post', 'alert' => 'Les champs marqués d\'un astérisque sont obligatoires' ));
+
+    echo $form->input(array('type' => 'text', 'name' => 'nom', 'value' => '', 'label' => 'Votre nom *'));
+    echo $form->input(array('type' => 'text', 'name' => 'prenom', 'value' => '', 'label' => 'Votre pr&eacute;nom *'));
+    echo $form->input(array('type' => 'text', 'name' => 'raison_social', 'value' => '', 'label' => 'Raison sociale *'));
+    echo $form->input(array('type' => 'textarea', 'name' => 'adresse', 'wysiwyg' => false));
+    echo $form->input(array('type' => 'text', 'name' => 'code_postal', 'value' => '', 'label' => 'Votre code postal *'));
+    echo $form->input(array('type' => 'text', 'name' => 'ville', 'value' => '', 'label' => 'Votre ville *'));
+
+    echo '<p><input type="checkbox" name="newsletters" id="newsletters" value="1" /> Abonnez vous à la newsletter</p>';
+
+    // CEUX QU'IL FAUT RECUPERER DEPUIS LE MAIL
+    //      - La cle
+    echo $form->input(array('type' => 'hidden', 'name' => 'k', 'value' => $_GET['k']));
+    echo $form->input(array('type' => 'submit','name' => 'submit', 'value' => 'Enregistrement'));
+    echo $form->close();
+
+    } else {
+        echo '<div class="errormessageb">No user</div><br/ ><br/ >';
+    }
+
+} else {
+    echo '<div class="errormessageb">No key</div><br/ ><br/ >';
+}
+?>
+
+</div>
+

@@ -1,0 +1,58 @@
+<?php
+    get::$title = 'Mise à jour de votre compte';
+    echo $html->h1('Mise à jour de votre compte');
+    echo $html->h2('Type de paiement');
+?>
+
+<div class="span-22" style="text-align: center;">
+
+<?php
+$profilAction = '/app/tarifs/' . $_SESSION['email'] . '/updateTarif';
+if (!isset($profilAction)) {
+    $profilAction = get::url(array('ssl' => false));
+}
+
+//    echo $form->open(array('action' => $profilAction, 'method' => 'post'));
+//
+//    echo $form->input(array('type' => 'text', 'name' => 'cb', 'value' => '', 'label' => 'Code CB *'));
+//    echo $form->input(array('type' => 'text', 'name' => 'code', 'value' => '', 'label' => 'Code *'));
+//
+//    echo $form->input(array('type' => 'submit','name' => 'submit', 'id' => 'submit', 'value' => 'Upgrader votre compte'));
+//    echo $form->close();
+
+
+    
+    //get::component('paypal')->goToPay();
+
+    // Si abonnement en cours
+    if(get::model('consommation')->getAbonnement($_SESSION['id_utilisateur'] == true)) {
+    echo '<div class="cadre-info"><p><strong>Attention !</strong> Vous avez un abonnement actuellement en cours</a></p>
+                                    En effectuant le paiement pour cette abonnement vous perdez les conditions de votre précédent abonnement.</div>';
+    }
+    ?>
+<table summary="Type de paiement">
+
+<caption>
+    Type de paiement
+</caption>
+
+  <thead>
+    <tr>
+     <th>Carte bleu</th>
+     <th>Paypal</th>
+     <th>Autre</th>
+    </tr>
+  </thead>
+
+  <tbody>
+      <tr>
+          <td><a href="/app/reservation_cb/<?php echo $_SESSION['email'] . '/' . $id_conso; ?>">CB</a></td>
+          <td><a href="/app/reservation_pp/<?php echo $_SESSION['email'] . '/' . $id_conso; ?>">Paypal</a></td>
+          <td>Chèque</td>
+      </tr>
+   </tbody>
+</table>
+
+
+</div>
+

@@ -1,0 +1,65 @@
+<?php
+    get::$title = 'Inscrire des participants';
+    echo $html->h1('Ajouter un participant');
+    include("menu");
+?>
+
+<div class="span-12">
+
+<?php
+if(get::component('comptage')->droitCreationParticipant() == true) {
+
+    $profilAction = "/app/participant/addParticipant";
+    if (!isset($profilAction)) {
+        $profilAction = get::url(array('ssl' => false));
+        echo 'Url d\'accès : ' . $create_room;
+    }
+
+    if(!empty($errors))
+        echo '<div class="errormessageb">' . $errors . '</div>';
+
+    echo $form->open(array('action' => $profilAction, 'method' => 'post', 'alert' => 'Vous devez insérer nom, mot de passe et email ou plusieurs participants'));
+    // Test info
+    if (isset($_POST['nom']) && empty($_POST['nom']) || !empty($plusieurs)) {
+        $_POST['errors']['nom'] = 'Le nom n\'est pas insérée';
+    }
+    if (isset($_POST['passap']) && empty($_POST['passap']) || !empty($plusieurs)) {
+        $_POST['errors']['passap'] = 'Le mot de passe participant n\'est pas inséré';
+    }
+    if (isset($_POST['email']) && empty($_POST['email']) || !empty($plusieurs)) {
+        $_POST['errors']['email'] = 'Votre email n\'est pas inséré';
+    }
+    echo $form->input(array('type' => 'text', 'name' => 'nom', 'value' => '', 'label' => 'Nom de pseudo du participant *'));
+    echo $form->input(array('type' => 'password', 'name' => 'passap', 'value' => '', 'label' => 'Mot de passe participant *'));
+    echo $form->input(array('type' => 'text', 'name' => 'email', 'value' => '', 'label' => 'Email du participant *'));
+
+    echo $form->input(array('type' => 'textarea', 'name' => 'plusieurs', 'value' => '', 'id' => 'plusieurs', 'wysiwyg' => false));
+
+    echo $form->input(array('type' => 'hidden', 'name' => 'id_utilisateur', 'value' => $_SESSION['email']));
+    if(isset(mvc::$params[0]) && mvc::$params[0] != "addParticipant")
+       echo $form->input(array('type' => 'hidden', 'name' => 'id_meeting', 'value' => mvc::$params[0]));
+    else
+       echo $form->input(array('type' => 'hidden', 'name' => 'id_meeting', 'value' => $_POST['id_meeting']));
+
+    echo '<p><input type="checkbox" name="invite" value="1" /> Envoyer invitation par email</p>';
+
+    echo $form->input(array('type' => 'submit', 'name' => 'submit', 'value' => 'Ajouter'));
+    echo $form->close();
+
+    } else {
+    echo '<div class="cadre-info"><p>Nombre de participant atteint</a></p>
+                                    Vous pouvez <a href="/app/tarifs/' . $_SESSION['email']. '">upgrader votre compte</a> pour bénéficier de plus de salle.<br /></div>';
+
+    echo get::component('participant')->ListeParticipant();
+
+}
+?>
+
+</div>
+
+<span class="span-5">
+    <h4>Aide</h4>
+    <p>Vous pouvez ajouter un ou plusieurs particpants à une webconférence.<br /><br />
+    Dans le cas ou vous souhaitez insérer plusieurs contacts, ajouter dans le champs "<strong>Plusieurs</strong>" un contact par ligne et séparer nom,
+    mots de passe et email du participant par un point virgule (;).</p>
+</span>

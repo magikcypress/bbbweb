@@ -1,0 +1,236 @@
+<?php
+/**
+ * Functions required by the account controller.
+ */
+class consommationModel extends model {
+    /**
+     * Table/collection name - only need to change this if you will be operating multiple Vork account instances
+     * on the same database
+     * @var string
+     */
+    protected $_table_util = 'utilisateur';
+    protected $_table_conso = 'consommation';
+    protected $_table_tarif = 'tarifs';
+
+    /**
+     * Database type to use
+     * @var string Either sql or mongo
+     */
+    protected $_db;
+
+    /**
+     * Mongo collection object cache
+     * @var MongoCollection
+     */
+    protected $_mongo_util;
+    protected $_mongo_conso;
+    protected $_mongo_tarif;
+
+    /**
+     * Sets $this->_db and if it is Mongo then it sets the MongoDB collection
+     */
+    public function __construct() {
+        $this->_db = (!in_array('mongo', config::$modelObjects) ? 'sql' : 'mongo');
+    }
+
+    /**
+     * Switchboard to route to either SQL or Mongo methods
+     *
+     * @param string $name
+     * @param array $args
+     */
+    public function __call($name, array $args) {
+        $name = '_' . $this->_db . ucfirst($name);
+        if ($this->_db == 'mongo' && !$this->_mongo_util && !$this->_mongo_conso && !$this->_mongo_tarif) {
+            $this->_mongo_util = $this->mongo->selectCollection($this->_table_util);
+            $this->_mongo_conso = $this->mongo->selectCollection($this->_table_conso);
+            $this->_mongo_tarif = $this->mongo->selectCollection($this->_table_tarif);
+        }
+        return call_user_func_array(array($this, $name), $args);
+    }
+
+   /**
+     * Get Conso
+     */
+    public function _sqlgetConso($email) {
+        $sql = 'select id_utilisateur from ' . $this->_table_util . ' where email=' . $this->db->cleanString($email);
+        $res = $this->db->query($sql);
+        $row = $res->fetch_assoc();
+        $sql = 'select id_consommation, date, prix, expire from ' . $this->_table_conso . ' where id_utilisateur=' . $this->db->cleanString($row['id_utilisateur']) . ' and valide = 1 group by date DESC';
+        $res = $this->db->query($sql);
+        while ($row = $res->fetch_assoc()) {
+            $conso[$row['id_consommation']] = array('id_consommation' => $row['id_consommation'],'date' => $row['date'], 'prix' => $row['prix'], 'expire' => $row['expire']);
+        }
+        return $conso;
+    }
+    public function _mongogetConso($email) {
+//        $this->_mongo_util->ensureIndex($email);
+        $id_utilisateur = $this->_mongo_util->findOne(array('email' => $email));
+        $row = $this->_mongo_conso->findOne(array('id_utilisateur' => $id_utilisateur));
+        return ($row ? $row['id_consommation'] : false);
+    }
+
+   /**
+     * Get Abonnement en cours
+     */
+    public function _sqlgetAbonnement() {
+        $sql = 'select id_consommation, date, prix from ' . $this->_table_conso . ' where id_utilisateur=' . $this->db->cleanString($_SESSION['id_utilisateur']) . ' and valide = 1 and date <= NOW() and expire = 0';
+        $res = $this->db->query($sql);
+        $row = $res->fetch_assoc();
+        return (boolean) ($row['id_consommation']) ? true : false;
+    }
+    public function _mongogetAbonnement($email) {
+//        $this->_mongo_util->ensureIndex($email);
+        $id_utilisateur = $this->_mongo_conso->findOne(array('id_utilisateur' => $id_utilisateur));
+        return ($row ? $row['id_consommation'] : false);
+    }
+
+    /**
+     * Get Facture
+     */
+    public function _sqlgetFacture($id_facture) {
+        $sql = 'select date, prix, id_tarif from ' . $this->_table_conso . ' where id_consommation=' . (int) $id_facture;
+        $res = $this->db->query($sql);
+        return $res->fetch_assoc();
+    }
+    public function _mongogetFacture($id_facture) {
+        $row = $this->_mongo_conso->findOne(array('id_facture' => $id_facture));
+        return ($row ? array($row['date'],$row['prix'],$row['id_tarif']) : false);
+    }
+
+    /**
+     * Get DetailFacture
+     */
+    public function _sqlgetDetailFacture($id_tarif) {
+        $sql = 'select id_tarif, prix, remise, description, nom, options from ' . $this->_table_tarif . ' where id_tarif=' . (int) $id_tarif;
+        $res = $this->db->query($sql);
+        return $res->fetch_assoc();
+    }
+    public function _mongogetDetailFacture($id_tarif) {
+        //$this->_mongo_tarif->ensureIndex($id_tarif);
+        $row = $this->_mongo_tarif->findOne(array('id_tarif' => $id_tarif));
+        return ($row ? array($row['id_tarif'],$row['prix'],$row['remise'],$row['description'],$row['nom'],$row['options']) : false);
+    }
+
+
+     /**
+     * Update tarif
+     */
+    public function _sqlupdateTarif($email, array $args) {
+        foreach ($args as $key => $val) {
+            $sqlCols[] = $key . '=' . $val;
+        }
+
+        // Si le cron retourne un abonnement expiré
+        if(isset($args['id_consommation'])) {
+            $sql = 'update ' . $this->_table_conso . ' set expire=1 where id_consommation=' . $args['id_consommation'];
+            $this->db->query($sql);
+        } else {
+            $sql = 'update ' . $this->_table_util . ' set ' . implode(',', $sqlCols) . ' where email=' . $this->db->cleanString($email);
+            $this->db->query($sql);
+
+            $sql = 'select id_tarif, prix from ' . $this->_table_tarif . ' where id_tarif=' . (int) $val;
+            $res = $this->db->query($sql);
+            $row = $res->fetch_assoc();
+
+            $sql = 'insert into ' . $this->_table_conso . ' (date, prix, id_utilisateur, id_tarif) values(NOW(), ' . $row['prix'] . ', ' . $_SESSION['id_utilisateur'] . ', ' . $row['id_tarif'] . ')';
+            $this->db->query($sql);
+            $_SESSION['id_tarif'] = $val;
+
+            $sql = 'select max(id_consommation) from ' . $this->_table_conso . ' where id_utilisateur=' . (int) $_SESSION['id_utilisateur'];
+            $res = $this->db->query($sql);
+            $row = $res->fetch_assoc();
+
+            return $row;
+        }
+    }
+
+    /**
+     * Get tarifs
+     */
+    public function _sqlgetTarifs() {
+        $sql = 'select id_tarif, prix, remise, description, nom, options from ' . $this->_table_tarif;
+        $res = $this->db->query($sql);
+        while ($row = $res->fetch_assoc()) {
+            $tarifs[$row['id_tarif']] = array('id_tarif' => $row['id_tarif'], 'prix' => $row['prix'], 'remise' => $row['remise'], 'description' => $row['description'], 'nom' => $row['nom'], 'options' => $row['options']);
+        }
+        return $tarifs;
+    }
+    public function _mongogetTarifs() {
+        $tarifs = $this->_mongo_tarif->find();
+        return $tarifs;
+    }
+
+    /**
+     * Get tarifs
+     */
+    public function _sqlgetUserTarifs($email) {
+        $sql = 'select id_tarif from ' . $this->_table_util . ' where email=' . $this->db->cleanString($email);
+        $res = $this->db->query($sql);
+        $row = $res->fetch_assoc();
+        return $row;
+    }
+    public function _mongogetUserTarifs($email) {
+        $row = $this->_mongo_util->findOne(array('email' => $email));
+        return $row;
+    }
+
+
+    /**
+     * Get Max Salle by tarif
+     */
+    public function _sqlgetMaxSalle($id_tarif) {
+        $sql = 'select max_salle from ' . $this->_table_tarif . ' where id_tarif=' . (int) $id_tarif;
+        $res = $this->db->query($sql);
+        return $res->fetch_assoc();
+    }
+    public function _mongogetMaxSalle($id_tarif) {
+        $row = $this->_mongo_tarif->findOne(array('id_tarif' => $id_tarif));
+        return ($row ? $row['max_salle'] : false);
+        return;
+    }
+
+    /**
+     * Get Max Participant by tarif
+     */
+    public function _sqlgetMaxParticipant($id_tarif) {
+        $sql = 'select max_participant from ' . $this->_table_tarif . ' where id_tarif=' . (int) $id_tarif;
+        $res = $this->db->query($sql);
+        return $res->fetch_assoc();
+    }
+    public function _mongogetMaxParticipant($id_tarif) {
+        $row = $this->_mongo_tarif->findOne(array('id_tarif' => $id_tarif));
+        return ($row ? $row['max_participant'] : false);
+        return;
+    }
+
+     /**
+     * Get register user day
+     */
+    public function _sqlgetUserRegisterDay($id_utilisateur) {
+        $sql = 'select date from ' . $this->_table_conso . ' where id_utilisateur=' . $this->db->cleanString($id_utilisateur);
+        $res = $this->db->query($sql);
+        return $res->fetch_assoc();
+    }
+    public function _mongogetUserRegisterDay($email) {
+        $row = $this->_mongo_conso->findOne(array('email' => $email));
+        return ($row ? $row['date'] : false);
+    }
+
+    /**
+     * Cron Consommation
+     */
+    public function _sqlgetCronConso() {
+        $sql = 'select id_consommation, date from ' . $this->_table_conso . ' where date<CURDATE()';
+        $res = $this->db->query($sql);
+        while ($row = $res->fetch_assoc()) {
+            $cron[$row['id_consommation']] = array('id_consommation' => $row['id_consommation'], 'date' => $row['date']);
+        }
+        if(isset($cron)) return $cron;
+    }
+    public function _mongogetCronConso() {
+        $planning = $this->_mongo->findOne(array('date' => NOW()));
+        return $planning;
+    }
+
+}

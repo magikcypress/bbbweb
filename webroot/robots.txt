@@ -1,0 +1,7 @@
+User-Agent: *
+Allow: /
+Disallow: /error
+Sitemap: /sitemap
+
+User-agent: WebsiteOutlook
+Disallow: /

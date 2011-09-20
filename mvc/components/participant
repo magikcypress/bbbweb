@@ -1,0 +1,66 @@
+<?php
+/**
+ * Participant
+ */
+class participantComponent {
+
+    /**
+     * Liste Participant
+     * @return num
+     */
+    public function ListeParticipant() {
+
+    $colors = array(true => '#f6f6f6', false => '#FFF');
+    $list_participant = get::model('participant')->getParticipant();
+
+    if(!empty($list_participant)) {
+    echo '<h2>Liste des participants</h2>';
+    echo '<ul class="liste_items">';
+    foreach($list_participant as $participant) {
+        echo '<div style="padding: .5em; margin-bottom: 1em; background:  /* . $colors[$html->alternator()] . */ ; border: 1px solid #ddd;">';
+        echo '<li class="item">
+                <strong>Nom du participant :</strong> ' . $participant['nom'] .'<br />
+                <strong>Email du participant :</strong> ' . $participant['email'] .'<br />
+                <strong>Date de cr&eacute;ation :</strong> ' . get::component('date')->datetime_us_2_fr($participant['date_creation']) .'<br /><br />';
+
+        echo '<div style="text-align: right;">
+                    <a href="/app/supprimer/participant/' . $participant['id_participant'] . '" id="supprimer" onclick="supprimer()" title="Supprimer participant"><img src="../../images/delete.png" alt="Supprimer participant" /></a>
+                </div>
+                </li></div>';
+    }
+    echo '</ul>';
+    }
+    
+    }
+
+/**
+     * Liste Participant par salle
+     * @return num
+     */
+    public function ListeParticipantByMeetings($id_meeting) {
+
+    $colors = array(true => '#f6f6f6', false => '#FFF');
+    $list_participant = get::model('participant')->getParticipantbyMeetings($id_meeting);
+    $meeting = get::model('creer')->getInfoSalle($id_meeting);
+    if(!empty($list_participant)) {
+    echo '<h3>Liste des participants pour cette salle</h3>';
+    echo '<ul class="liste_items">';
+    foreach($list_participant as $participant) {
+        echo '<div style="padding: .5em; margin-bottom: 1em; background: #FFF ; border: 1px solid #ddd;">';
+        echo '<li class="item">
+                <strong>' . $participant['nom'] .'</strong> (' . $participant['email'] .') <br />
+                <strong>Cr&eacute;e le : </strong>' . get::component('date')->datetime_us_2_fr($participant['date_creation']) .'<br />';
+
+        echo '<div style="text-align: right; margin: 0;">
+                    <a href="/app/invite/' . $participant['id_participant'] . '/' . $id_meeting . '" title="Envoyer invitation" onclick="ajax.load(\'contentbox\', this.url)"><img src="../images/email_to_friend.png" alt="Envoyer invitation" /></a>
+                        <a href="/app/supprimer/participant/' . $participant['id_participant'] . '" id="supprimer" onclick="supprimer()" title="Supprimer"><img src="../images/delete.png" alt="Supprimer" /></a>
+                </div>
+                </li></div>';
+    }
+    echo '</ul>';
+    }
+
+    }
+
+}
+?>

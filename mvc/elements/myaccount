@@ -1,0 +1,10 @@
+<?php
+if (!isset($_SESSION['userid'])) {
+    $args = array();
+    if (isset($loginAction)) {
+        $args['loginAction'] = $loginAction;
+    }
+    load::element('login', $args);
+} else {
+    load::element('logout');
+}

@@ -1,0 +1,41 @@
+K 25
+svn:wc:ra_dav:version-url
+V 45
+/bbbwebclient/!svn/ver/20/vork/lib/Mail/tests
+END
+rfc822.phpt
+K 25
+svn:wc:ra_dav:version-url
+V 57
+/bbbwebclient/!svn/ver/20/vork/lib/Mail/tests/rfc822.phpt
+END
+13659.phpt
+K 25
+svn:wc:ra_dav:version-url
+V 56
+/bbbwebclient/!svn/ver/20/vork/lib/Mail/tests/13659.phpt
+END
+smtp_error.phpt
+K 25
+svn:wc:ra_dav:version-url
+V 61
+/bbbwebclient/!svn/ver/20/vork/lib/Mail/tests/smtp_error.phpt
+END
+validateQuotedString.php
+K 25
+svn:wc:ra_dav:version-url
+V 70
+/bbbwebclient/!svn/ver/20/vork/lib/Mail/tests/validateQuotedString.php
+END
+9137.phpt
+K 25
+svn:wc:ra_dav:version-url
+V 55
+/bbbwebclient/!svn/ver/20/vork/lib/Mail/tests/9137.phpt
+END
+9137_2.phpt
+K 25
+svn:wc:ra_dav:version-url
+V 57
+/bbbwebclient/!svn/ver/20/vork/lib/Mail/tests/9137_2.phpt
+END

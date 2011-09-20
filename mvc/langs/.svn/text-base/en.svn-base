@@ -1,0 +1,20 @@
+<?php
+
+class enLang {
+
+    public function Lang() {
+        $lang = array(
+
+              // A
+              'acces_videoconf' => 'Webconf access',
+
+              // C
+              'connexion' => 'Connexion'
+
+        );
+
+    }
+}
+
+
+?>

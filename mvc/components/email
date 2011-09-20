@@ -1,0 +1,122 @@
+<?php
+/**
+ * Email-sending functionality
+ */
+class emailComponent {
+
+    /**
+    * Test validate email
+    *
+    * @param     integer $email value test
+    * @return    integer 
+    * @access    public
+    */
+    public function validateEmail($email)
+    {
+        return (preg_match("/^[_\.0-9a-zA-Z-]+@([0-9a-zA-Z][0-9a-zA-Z-]+\.)+[a-zA-Z]{2,6}$/i",$email));
+    }
+
+    /**
+     * Sends an email.
+     *
+     * Required argument keys are: to, from, subject, body
+     * Optional keys are: fromName, (boolean) html, (array) headers
+     * Use Pear http://pear.php.net/manual/en/package.mail.mail.factory.php
+     *
+     * @param array $args
+     * @return boolean Success status sending email
+     */
+    public function sendEmail(array $args) {
+
+        require_once('../lib/PHPMailer_v5.1/class.phpmailer.php');
+        //include("class.smtp.php"); // optional, gets called from within class.phpmailer.php if not already loaded
+
+        $mail = new PHPMailer(true); // the true param means it will throw exceptions on errors, which we need to catch
+
+        $mail->IsSMTP(); // telling the class to use SMTP
+
+        try {
+          $parametres = get::model('divers')->getParaSmtp();
+          $mail->Host       = $parametres[1]['host']; // SMTP server
+          $mail->SMTPDebug  = 2;                     // enables SMTP debug information (for testing)
+          $mail->SMTPAuth   = true;                  // enable SMTP authentication
+          $mail->Host       = $parametres[1]['host']; // sets the SMTP server
+          $mail->Port       = $parametres[1]['port'];                    // set the SMTP port for the GMAIL server
+          $mail->Username   = $parametres[1]['usersmtp']; // SMTP account username
+          $mail->Password   = $parametres[1]['passsmtp'];        // SMTP account password
+          $mail->AddReplyTo($args['from'], $args['fromName']);
+          $mail->AddAddress($args['to'], 'BBB service');
+          $mail->SetFrom($args['from'], $args['fromName']);
+          $mail->AddReplyTo($args['from'], $args['fromName']);
+          $mail->Subject = $args['subject'];
+          $mail->Body = $args['body'];
+          $mail->Send();
+          echo "Message Sent OK\n";
+        } catch (phpmailerException $e) {
+          echo $e->errorMessage(); //Pretty error messages from PHPMailer
+        } catch (Exception $e) {
+          echo $e->getMessage(); //Boring error messages from anything else!
+        }
+
+
+        return;
+    }
+
+/**
+     * Sends an email.
+     *
+     * Required argument keys are: to, from, subject, body
+     * Optional keys are: fromName, (boolean) html, (array) headers
+     * Use Pear http://pear.php.net/manual/en/package.mail.mail.factory.php
+     *
+     * @param array $args
+     * @return boolean Success status sending email
+     */
+    public function sendEmail2(array $args) {
+        //ini_set('error_reporting', 'E_ALL | E_STRICT');
+
+        require_once '../lib/Mail/Mail.php';
+
+
+        /* mail setup recipients, subject etc */
+        $recipients = $args['to'];
+        $headers['from'] = $args['from'];
+//        if (isset($args['fromName'])) {
+//            $headers['from'] .= ' <"' . $args['fromName'] . '"> ';
+//        }
+        $headers["to"] = $args['to'] . ' <' . $args['to'] . '>';
+        $headers["subject"] = $args['subject'];
+        $mailmsg = $args['body'];
+
+        $driver = 'smtp';
+
+        if($driver == 'smtp') {
+            $parametres = get::model('divers')->getParaSmtp();
+            $paramsmail["host"] = $parametres[1]['host'];
+            $paramsmail["port"] = $parametres[1]['port'];
+            $paramsmail["auth"] = ($parametres[1]['auth'] == 1) ? true : false;
+            $paramsmail["username"] = $parametres[1]['usersmtp'];
+            $paramsmail["password"] = $parametres[1]['passsmtp'];
+            $paramsmail["localhost"] = $parametres[1]['host'];
+            $paramsmail["debug"] = false;
+        } else {
+            // if mail()
+            $paramsmail = '';
+        }
+
+        /* Create the mail object using the Mail::factory method */
+        $mail_object =& Mail::factory($driver, $paramsmail);
+        /* Ok send mail */
+        $mail_object->send($recipients, $headers, $mailmsg);
+
+         if (PEAR::isError($mail_object)) {
+           $return['message'] =  $mail_object->getMessage();
+          } else {
+           $return['message'] = "Ok";
+          }
+
+        return;
+    }
+
+
+}

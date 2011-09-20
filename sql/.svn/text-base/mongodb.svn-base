@@ -1,0 +1,107 @@
+<?php
+/**
+ * MongoDB helper class
+ */
+class vorkMongoDB extends MongoDB {
+    /**
+     * Copies a collection
+     *
+     * @param string $from Name of collection
+     * @param string $to Name of the new (copied) collection
+     * @param string $toDb Optional, current DB will be used if omitted
+     * @return array
+     */
+    public function copyCollection($from, $to, $toDb = null, $args = array('timeout' => -1)) {
+        if ($toDb) {
+            $tempName = $from . '_temp_' . time() . rand(1000, 9999);
+            $this->copyCollection($from, $tempName);
+            return $this->renameCollection($tempName, $to, $toDb);
+        }
+        $cmd = 'db.' . addslashes($from) . '.copyTo("' . addslashes($to) . '");';
+        return $this->command(array('$eval' => $cmd), $args); //using cmd instead of execute to enable setting timeout
+    }
+
+    /**
+     * Renames a collection
+     * Can also be used to move a collection to a different database by supplying the third $toDb argument
+     *
+     * @param string $from
+     * @param string $to
+     * @param string $toDb Optional, current DB will be used if omitted
+     * @return array
+     */
+    public function renameCollection($from, $to, $toDb = null, $args = array('timeout' => -1)) {
+        $to = ($toDb ? $toDb : vorkMongo::$dbName) . '.' . $to;
+        $cmd = array('renameCollection' => vorkMongo::$dbName . '.' . $from, 'to' => $to);
+        return vorkMongo::$mongo->selectDB('admin')->command($cmd, $args);
+    }
+}
+
+/**
+ * Mongo wrapper - required to extend the MongoDB class
+ */
+class vorkMongo {
+    /**
+     * Cache of Mongo object
+     * @var Mongo
+     */
+    static $mongo;
+
+    /**
+     * Name of MongoDB
+     * @var string
+     */
+    static $dbName;
+
+    /**
+     * Wrapper for the Mongo object
+     *
+     * @param string $server
+     * @param array $options
+     * @return Mongo
+     */
+    public function __construct($server = 'mongodb://localhost:27017', array $options = array('connect' => true)) {
+        self::$mongo = new Mongo($server, $options);
+        return self::$mongo;
+    }
+
+    /**
+     * Wrapper for the Mongo::selectDB() method
+     *
+     * @param string $dbName
+     * @return MongoDB
+     */
+    public function selectDB($dbName) {
+        self::$dbName = $dbName;
+        return new vorkMongoDB(self::$mongo, $dbName);
+    }
+
+    /**
+     * Wrapper for shortcut to selectDB()
+     *
+     * @param string $dbName
+     * @return MongoDB
+     */
+    public function __get($dbName) {
+        return $this->selectDB($dbName);
+    }
+
+    /**
+     * Returns a string-representation of the Mongo object
+     * @return string
+     */
+    public function __toString() {
+        return (string) self::$mongo;
+    }
+
+    /**
+     * Catch-all method to future-proof this class
+     *
+     * @param string $name
+     * @param array $args
+     * @return mixed
+     */
+    public function __call($name, array $args) {
+        return call_user_func_array(array(self::$mongo, $name), $args);
+    }
+}

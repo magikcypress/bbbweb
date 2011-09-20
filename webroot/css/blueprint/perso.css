@@ -1,0 +1,54 @@
+body { background: #777e01 /*url(../../images/body.png) repeat-x*/; }
+h1 { font-size: 2.5em; padding: .5em 0 0 .2em; }
+h2, h3 { padding: 0 0 0 .4em; }
+input { width: 30em; height: 2em; }
+textarea { font-size: 1.5em; }
+label, p, li, .col { font-size: 1.1em; }
+.col { margin: 1em 1em 1em 2em; padding: 1em; border: solid 1px #ddd; background: #fff; }
+.souscol { font-size: .9em; margin-left: 1em; }
+.date { font-size: .9em; text-align: right; }
+label { margin-top:20px; display:block; }
+label.inline, .horloge label { display:inline }
+.twitt { padding: .5em; margin: .3em;}
+.twitt span { padding: .5em; margin: .3em; border: 1px solid #ddd; display: block; }
+/*.header { background: #777e01; padding-top:1em; margin-bottom: 2em} */
+.header { list-style: none; padding: .5em .5em .5em .5em; border-bottom: 1px solid #ddd; background: #fff url(../../images/head.png) repeat-x; }
+.header .span-7 { margin-top: 1em; }
+.footer { padding: .5em; border-top: solid 1px #ddd; }
+.header p { text-align: right; }
+.footer { padding-top:1em; font-size: 1.2em; }
+.tandc { font-size: 1.4em; }
+.nomarge { text-align: center; margin: 1em 0 0 0; padding: 0; background: #fff; }
+div .span-5, div .span-9 { background: #f6f6f6; border: 1px solid #ddd; padding: .5em; }
+div .span-5 p { font-size: 1em; }
+div .span-7 { font-size: 1em; }
+div .span-14 { padding: 0 0 0 1em; margin: 0 1em 1.2em 0; }
+div .span-23 { margin-top: 1.5em; padding: 0 0 0 1.5em; }
+li { font-size: 1.2em; list-style: none; }
+li.item li { font-size: 1em; }
+.menugauche li { padding: .5em 0 .5em .4em; margin: .2em 0 .2em 0; border: solid 1px #ddd; }
+.menugauche li:hover { padding: .5em 0 .5em .4em; margin: .2em 0 .2em 0; border: solid 1px #fff; background: #f6f6f6; }
+.header ul { padding: 0; margin: 0; }
+.connexion { display: inline; text-align: right; }
+.container { background: #FFFFFF; -moz-box-shadow: 0 0 72px #999;
+-webkit-box-shadow: 0 0 72px #999;
+box-shadow: 0 0 72px #999; text-shadow: 0;
+behavior: url(border-radius.htc);
+}
+.register { text-align: center; margin: 5em 0 5em 0; }
+input[type="radio"] { float: left; }
+input[type="submit"], .register a { margin: 5px; width: 50%; background-color: #777e01; color: #FFF; border: 0; -moz-border-radius: 5px; -webkit-border-radius: 5px; }
+.register a { padding: 2em; font-size: 1.6em; width: 80%; }
+.organisation span { margin: 0 15em 0 0; padding: 0 .6em 0 .6em; font-weight: bold; }
+.organisation .organisation span { margin: 0 8em 0 0; padding: 0 .6em 0 .6em; font-weight: normal; }
+fieldset { background: #f6f6f6; }
+div.telephonebloc, div.emailbloc, div.vcardbloc { padding: 0 0 5px 25px; margin: 0.25em 0 0.25em 0; }
+div.telephonebloc { background: url(../../images/tel.png) no-repeat; }
+.boite_contact div.emailbloc { background: url(../../images/email.png) no-repeat; }
+.boite_contact div.vcardbloc { background: url(../../images/icon_vcard.gif) no-repeat; }
+.cadre-info { margin-bottom: 2em; padding: 2em 0 2em 0; font-size: 1.2em; border: solid 1px #fff; background: #f6f6f6; text-align: center; }
+.errormessageb { text-align: center; font-size: 1.2em; color: red; font-weight: bold; background: #ffeded url(../../images/error.png) no-repeat top left; padding: .5em; border: solid 1px #ffd9d9; }
+.errormessage  { display: block; font-size: 1.1em; margin: 0; padding: 0; color: red; font-weight: bold; background: #ffeded;  border: solid 1px #ffd9d9;  }
+#formerrorwrapper, #profilformerrorwrapper { padding-left: .3em; color: #000000; font-weight: normal; }
+.invisible { position: absolute; top: -3000em; height: 1%; }
+

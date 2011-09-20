@@ -1,0 +1,102 @@
+<?php
+class registerModel {
+
+    /**
+     * Table/collection name - only need to change this if you will be operating multiple Vork account instances
+     * on the same database
+     * @var string
+     */
+    protected $_table = 'utilisateur';
+
+    /**
+     * Database type to use
+     * @var string Either sql or mongo
+     */
+    protected $_db;
+
+    /**
+     * Mongo collection object cache
+     * @var MongoCollection
+     */
+    protected $_mongo;
+
+    /**
+     * Sets $this->_db and if it is Mongo then it sets the MongoDB collection
+     */
+    public function __construct() {
+        $this->_db = (!in_array('mongo', config::$modelObjects) ? 'sql' : 'mongo');
+    }
+
+    /**
+     * Switchboard to route to either SQL or Mongo methods
+     *
+     * @param string $name
+     * @param array $args
+     */
+    public function __call($name, array $args) {
+        $name = '_' . $this->_db . ucfirst($name);
+        if ($this->_db == 'mongo' && !$this->_mongo) {
+            $this->_mongo = $this->mongo->selectCollection($this->_table);
+        }
+        return call_user_func_array(array($this, $name), $args);
+    }
+
+    /**
+     * Adds a user
+     */
+    public function _sqlRegister(array $args) {
+        $args = $this->db->cleanString($args);
+        foreach ($args as $key => $val) {
+                $sqlKey[] = $key;
+                $sqlval[] = $val;
+        }
+        $sql = 'insert into ' . $this->_table . ' (' . implode(',', $sqlKey) . ') values(' . implode(',', $sqlval) . ')';
+        $this->db->query($sql);
+
+        // Insert first conso
+        $sql = 'select max(id_utilisateur) from ' . $this->_table;
+        $res = $this->db->query($sql);
+        $_id = (int) current($res->fetch_row());
+        $sql = 'insert into consommation (date, prix, id_utilisateur, valide, id_tarif, expire) value(NOW(), 0, ' . $_id . ', 1, 0, 0)';
+        $this->db->query($sql);
+    }
+    protected function _mongoRegister(array $args = array()) {
+        $args['id_utilisateur'] = uniqid();
+        // TODO : insert [0] => uniqid into collection
+        array_push($args, $args['id_utilisateur']);
+        $this->_mongo->ensureIndex(array('id_utilisateur'), array('unique' => true));
+        $this->_mongo->insert($args);
+        //return $user['_id'];
+        return;
+    }
+
+    /**
+     * Update a user
+     */
+    public function _sqlUpdateRegister($cle, array $args) {
+        $args = $this->db->cleanString($args);
+        foreach ($args as $key => $val) {
+            $sqlCols[] = $key . '=' . $val;
+        }
+        $sql = 'update ' . $this->_table . ' set ' . implode(',', $sqlCols) . ' where cle=' . $this->db->cleanString($cle);
+        $this->db->query($sql);
+    }
+    protected function _mongoUpdateRegister($cle, array $args) {
+        $row = $this->_mongo->update(array('cle' => "$cle"),$args);
+        return;
+    }
+
+     /**
+     * User is valid ?
+     */
+    public function _sqlValidRegister($key) {
+        $sql = 'select * from ' . $this->_table . ' where cle=' . $this->db->cleanString($key) .'';
+        $res = $this->db->query($sql);
+        return $res->fetch_assoc();
+    }
+    public function _mongoValidRegister($key) {
+        $row = $this->_mongo->findOne(array('cle' => $key));
+        return ($row ? true : false);
+    }
+
+}

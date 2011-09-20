@@ -1,0 +1,107 @@
+<?php
+    $date_day = date('Ymdhis');
+    get::$title = 'Imprimer votre facture ' . $date_day ;
+    echo $html->h1('Votre facture ' . $date_day );
+?>
+<p class="print" style="text-align: right;">
+    <a href="#" onclick="window.print();return false;">Imprimer la page</a>
+</p>
+<div class="span-12">
+
+<div id="bill_header">
+    <h3>Facture N° : <?php echo $date_day; ?></h3>
+    <h3>Date:       <?php echo $date_day; ?>    </h3>
+</div>
+
+<table id="bill_infos">
+    <tr>
+
+        <td>
+            <strong>De</strong>
+            <br/>  <b>LegeardWeb</b><br />
+            4, boulevard du docteur peyré<br />
+              61140 BAGNOLES DE L'ORNE<br />
+              France<br />
+
+  RCS Alençon 499 355 725<br />
+  SIRET 499 355 725 XXXXX<br />
+  APE 6311Z - SAS au capital de 2.000EUR<br />
+  N° TVA FR XX XXX XXXX XX <br />
+  support@legeard.info
+  +33.974531049
+        </td>
+        <td>
+
+            <strong>client <?php echo $_SESSION['email']; ?></strong>
+            <br/>Blah Blah
+            <br/>
+4, boulevard du docteur peyré
+                    <br/>
+61140&nbsp;
+BAGNOLES DE L'ORNE
+                    <br/>France
+                <br/>
+Téléphone: +33.974531049
+                <br/>
+
+                <br/>
+Email: vincent.legeard@free.fr
+                <br/>
+
+            <br/>
+        </td>
+    </tr>
+</table>
+    <p id="bill_date">
+        <strong>Paiement</strong>
+
+        <br/>Effectué le <?php echo $date_day; ?>,&nbsp;payé par carte bancaire    </p>
+<div class="table" id="bill">        <table class="bill_detail">
+            <thead>
+                <tr>
+                    <th>Produit</th>
+                    <th style="width: 150px">Description</th>
+                    <th style="width: 150px">Propriétaire</th>
+
+                    <th style="width: 75px">Prix</th>
+                </tr>
+            </thead>
+            <tbody>
+                        <tr>
+                            <td>afado18.asso.fr                            </td>
+                            <td>Restauration                                        &nbsp;( 1 an)                            </td>
+
+                                    <td>LegeardWeb</td>
+                            <td>12,00 €                            </td>
+                        </tr>            </tbody>
+        </table></div>
+
+
+<table id="summary">
+    <tr>
+        <td class="title">Prix HT</td>
+
+        <td class="price">12,00 €        </td>
+    </tr>
+                <tr>
+            <td class="title">TVA (19.6 %)</td>
+            <td class="price">2,35 €            </td>
+        </tr>
+    <tr>
+
+        <td class="title">
+            <span class="highlight">Prix TTC&nbsp;</span>
+        </td>        <td class="price">
+            <span class="highlight">14,35 €</span>
+        </td>
+    </tr>
+</table>
+<span class="hrclear10"></span>    <div class="print">
+
+        <a style="text-align: right;" href="/app/conso/<?php echo $_SESSION['email']; ?>" onclick="window.close();" >Retour à la liste des factures</a>
+    </div>	</div>
+</div>
+
+
+
+

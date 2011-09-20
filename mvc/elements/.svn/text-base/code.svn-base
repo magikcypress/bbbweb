@@ -1,0 +1,38 @@
+<?php
+if (!isset($code)) {
+    echo $html->div('[no code]');
+    return;
+}
+
+$wrap = '/*--!WRAP-HERE!--*/';
+$codeLines = explode("\n", $code);
+foreach ($codeLines as $lineNum => $codeLine) {
+    $codeLines[$lineNum] = wordwrap($codeLine, 114, $wrap, true);
+}
+$code = implode("\n", $codeLines);
+
+$code = explode('<br />', $html->phpCode(!is_array($code) ? $code : implode(PHP_EOL, $code)));
+
+$padIterator = $lineNum = 0;
+$pixelsPerDigit = 7;
+$digitLen = strlen(count($code));
+for ($numberOfZeros = 5; $numberOfZeros > 0; $numberOfZeros--) { // functional to diplay up to 100,000 lines of code
+    if ($numberOfZeros < $digitLen) {
+        $padIterator += $pixelsPerDigit;
+    }
+    $pad[pow(10, $numberOfZeros)] = $padIterator;
+}
+
+$basePower = $charWidth = 10;
+$padSize = end($pad);
+echo '<div class="codeblock">';
+foreach ($code as $line) {
+    if (++$lineNum == $basePower) {
+        $basePower *= $charWidth;
+        $padSize = $pad[$basePower];
+    }
+    echo '<span style="padding-left: ' . $padSize . 'px">' . $lineNum . '</span> '
+       . str_replace($wrap, '<br /><span style="padding-left: ' . ($padSize + $charWidth) . 'px">&nbsp;</span>', $line)
+       . '<br />' . PHP_EOL;
+}
+echo '</div>';

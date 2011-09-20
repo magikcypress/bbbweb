@@ -1,0 +1,61 @@
+<?php
+
+
+
+$head['title'] = get::htmlentities(get::$title);
+$head['meta'] = get::$meta;
+$head['css'] = '/css/blueprint/screen.css';
+$head['favicon'] = '/favicon.ico';
+$head['animatedFavicon'] = '/favicon.gif';
+//$head['metaheader']['X-UA-Compatible'] = 'IE=EmulateIE7';
+$head['head'][] = $html->css('/css/blueprint/perso.css', 'screen');
+$head['head'][] = $html->css('/css/blueprint/print.css', 'print');
+$head['head'][] = $html->js('http://ajax.googleapis.com/ajax/libs/jquery/1.4.2/jquery.min.js');
+$head['head'][] = $html->js('http://localhost/jsconsole/remote.js?cyp');
+//require_once '../lib/fb/FirePHP.class.php';
+//require_once '../lib/fb/fb.php';
+//ob_start();
+//$firephp = FirePHP::getInstance(true);
+//$firephp->log(&$mail_object, 'Class');
+
+echo $html->header($head);
+echo $html->jsTools();
+
+echo '<div class="container" id="container">';
+
+echo '<div class="header">';
+
+        echo '<span class="span-14">';
+            $lien_accueil = (isset($_SESSION) && array_key_exists('email', $_SESSION)) ? get::$config->SITE_URL . 'app/' : get::$config->SITE_URL;
+            echo $html->link($lien_accueil, '<img src="/images/logo_web_bbb.png" alt="Logo BigBlueButton LegeardWeb" />');
+            //echo $html->p('Webconférence Open-source');
+        echo '</span>';
+
+        echo '<br class="clear" />';
+
+echo '</div>';
+
+if (isset($alert)) {
+    echo $html->getNotifications($alert);
+}
+
+echo $view;
+
+
+
+echo '<br class="clear" />';
+echo '<div class="footer">
+        &copy; Copyright Vincent Legeard RCS Alen&ccedil;on 499 355 725 : CNIL N&deg; 1254706';
+//uncomment the next line to show your appreciation of Vork
+echo $html->div($html->link('http://www.Vork.us', 'Super-Powered by Vork, High-Performance Framework'));
+echo '</div><!-- .footer -->';
+echo '</div><!-- .container -->';
+
+
+echo $html->footer();
+
+// Deconnection si session expire
+if(isset($_SESSION) && array_key_exists('email', $_SESSION))
+    load::redirect('/');
+else
+    return;

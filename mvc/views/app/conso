@@ -1,0 +1,78 @@
+<?php
+     get::$title = 'Consulter votre consommation';
+     echo $html->h1('Consulter votre consommation');
+
+     include("menu");
+?>
+
+<div class="span-12">
+<?php 
+    echo $html->h2('Consommation');
+
+if (isset($conso)) {
+
+    echo $html->h3('Liste');
+ ?>
+<table summary="liste de vos factures">
+
+<caption>
+    Liste des factures
+</caption>
+
+  <thead>
+    <tr>
+     <th>Date</th>
+     <th>Prix</th>
+     <th>Etat</th>
+     <th>Action</th>
+    </tr>
+  </thead>
+
+  <tbody>
+<?php
+     foreach ($conso as $id_consommation) {
+         $etat = ($id_consommation['expire'] == 1) ? 'Expir&eacute;' : 'En cours';
+         echo '<tr><td>' . $id_consommation['date'] . '</td>';
+         echo '<td>' . $id_consommation['prix'] . ' €</td>
+             <td>' . $etat . '</td>
+              <td><a href="/app/facture/' . $_SESSION['email'] . '/' . $id_consommation['id_consommation'] . '/"
+                  onClick="javascript:window.open(\'/app/facture/' . $_SESSION['email'] . '/' . $id_consommation['id_consommation'] . '\',\'Facture\',\'width=400,height=300\');return false;">
+                  Imprimer votre facture</a></td></tr>';
+     }
+?>
+   </tbody>
+</table>
+
+<?php
+
+    echo '<hr />';
+
+    echo $html->h3('Graphique');
+    $tools = get::helper('tools');
+    // https://chart.googleapis.com/chart?chs=250x100&chd=t:60,40&cht=p3&chl=Hello|World
+    // https://chart.googleapis.com/chart?chs=250x100&cht=lc&chd=t:40,60,60,45,47,75,70,72
+    //print_r($conso);
+    foreach ($conso as $id_consommation) {
+        $prix[] = $id_consommation['prix'];
+    }
+    $data = implode(',', $prix);
+    echo $tools->chart(array('chs'=>'500x200','cht'=>'lc','chtt'=>'Consommation','chxt'=>'x,y','chd'=>'t:' . $data . ''), array('alt'=>'Conso'));
+
+    // Si la période d'essai est passé
+    } elseif(get::component('tarif')->selectDayOut($_SESSION['email']) > 0) {
+        echo '<div class="cadre-info"><p>Votre période d\'essai est en cours !</p>';
+        echo '<p>Il vous reste encore <b>' . get::component('tarif')->selectDayOut($_SESSION['email']) . '</b> jours, mais vous pouvez <a href="/app/upgrade/' . $_SESSION['email']. '">upgrader votre compte</a> pour bénéficier de plus d\'options.</p></div>';
+
+    } else {
+            echo '<div class="errormessage">Aucune conso</div>';
+    }
+?>
+
+</div>
+
+<span class="span-5">
+    <h4>Aide</h4>
+    <p>Retrouver sur cette page votre consommation en webconf&eacute;rence.<br />
+    Vous pouvez r&eacute;cup&eacute;rer votre facture, visualiser votre consommations au fil des mois.</p>
+
+</span>

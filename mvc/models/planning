@@ -1,0 +1,122 @@
+<?php
+/**
+ * Functions required by the account controller.
+ */
+class planningModel extends model {
+    /**
+     * Table/collection name - only need to change this if you will be operating multiple Vork account instances
+     * on the same database
+     * @var string
+     */
+    protected $_table = 'planning';
+
+    /**
+     * Database type to use
+     * @var string Either sql or mongo
+     */
+    protected $_db;
+
+    /**
+     * Mongo collection object cache
+     * @var MongoCollection
+     */
+    protected $_mongo;
+
+    /**
+     * Sets $this->_db and if it is Mongo then it sets the MongoDB collection
+     */
+    public function __construct() {
+        $this->_db = (!in_array('mongo', config::$modelObjects) ? 'sql' : 'mongo');
+    }
+
+    /**
+     * Switchboard to route to either SQL or Mongo methods
+     *
+     * @param string $name
+     * @param array $args
+     */
+    public function __call($name, array $args) {
+        $name = '_' . $this->_db . ucfirst($name);
+        if ($this->_db == 'mongo' && !$this->_mongo) {
+            $this->_mongo = $this->mongo->selectCollection($this->_table);
+        }
+        return call_user_func_array(array($this, $name), $args);
+    }
+
+    /**
+     * Get Planning
+     */
+    public function _sqlgetPlanning($email) {
+        $sql = 'select p.id_planning, p.nom, p.descriptif, p.date_debut, p.date_fin, p.open_salle from ' . $this->_table . ' as p, utilisateur as i where p.id_utilisateur = i.id_utilisateur AND i.email = ' . $this->db->cleanString($email);
+        $res = $this->db->query($sql);
+        while ($row = $res->fetch_assoc()) {
+            $planning[$row['id_planning']] = array('id_planning' => $row['id_planning'], 'nom' => $row['nom'], 'date_debut' => $row['date_debut'], 'date_fin' => $row['date_fin'], 'descriptif' => $row['descriptif'], 'open_salle' => $row['open_salle']);
+        }
+        if(isset($planning)) return $planning;
+    }
+    public function _mongogetPlanning($email) {
+        $res = $this->_mongo->findOne(array('email' => $email));
+        return $res;
+    }
+
+    /**
+     * Get single Planning
+     */
+    public function _sqlsinglePlanning($nom) {
+        $sql = 'select id_planning from ' . $this->_table . ' where nom like ' . $this->db->cleanString($nom);
+        $res = $this->db->query($sql);
+        while ($row = $res->fetch_assoc()) {
+            $planning = array('id_planning' => $row['id_planning']);
+        }
+        if(isset($planning)) return $planning;
+    }
+    public function _mongosinglePlanning($nom) {
+        $res = $this->_mongo->findOne(array('nom' => $nom));
+        return $res;
+    }
+
+    /**
+     * Add Planning
+     */
+    public function _sqladdPlanning(array $args) {
+        $args = $this->db->cleanString($args);
+        foreach ($args as $key => $val) {
+            $sqlKey[] = $key;
+            $sqlval[] = $val;
+        }
+        $sql = 'insert into ' . $this->_table . ' (' . implode(',', $sqlKey) . ') values(' . implode(',', $sqlval) . ')';
+        $this->db->query($sql);
+    }
+    public function _mongoaddPlanning(array $args = array()) {
+        $this->_mongo->insert($args);
+    }
+
+    /**
+     * Delete Planning
+     */
+    public function _sqldeletePlanning() {
+        $sql = 'delete from  ' . $this->_table . '  where id_planning=' . $this->db->cleanString(mvc::$params[1]);
+        $this->db->query($sql);
+    }
+    public function _mongodeletePlanning() {
+        $row = $this->_mongo->remove(mvc::$params[1]);
+        return;
+    }
+
+    /**
+     * Cron Planning
+     */
+    public function _sqlgetCron() {
+        $sql = 'select id_planning, nom, date_debut, date_fin from ' . $this->_table . ' where open_salle=1';
+        $res = $this->db->query($sql);
+        while ($row = $res->fetch_assoc()) {
+            $cron[$row['id_planning']] = array('id_planning' => $row['id_planning'], 'nom' => $row['nom'], 'date_debut' => $row['date_debut'], 'date_fin' => $row['date_fin']);
+        }
+        if(isset($cron)) return $cron;
+    }
+    public function _mongogetCron() {
+        $planning = $this->_mongo->findOne(array('open_salle' => 1));
+        return $planning;
+    }
+    
+}

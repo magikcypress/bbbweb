@@ -1,0 +1,217 @@
+<?php
+/**
+ * Credit Card functions
+ */
+class ccComponent {
+    /**
+     * These properties store the response from AuthorizeNet after a charge
+     *
+     * @var string
+     */
+    public $authnetResponse, $authnetResponseText, $authnetApprovalCode, $authnetTransactionId;
+
+    /**
+     * Every second digit in the Mod 10 (Luhn) algorithm gets doubled and then the resulting digit(s) are added together
+     * This array maps the orignal number to the digit after the Mod 10 equation
+     */
+    protected $_mod10digits = array(0 => 0, 1 => 2, 2 => 4, 3 => 6, 4 => 8, 5 => 1, 6 => 3, 7 => 5, 8 => 7, 9 => 9);
+
+    /**
+     * Standard credit card test numbers; these will validate Mod 10 but are never valid credit card accounts
+     *
+     * @var array
+     */
+    public $ccTestNumbers = array(5105105105105100, 5555555555554444, 4222222222222, 4111111111111111,
+                                  4012888888881881, 378282246310005, 371449635398431, 378734493671000,
+                                  38520000023237, 30569309025904, 6011111111111117, 6011000990139424,
+                                  3530111333300000, 3566002020360505);
+
+    /**
+     * Credit card types; keys mapped to the AuthorizeNet card type response
+     *
+     * @var array
+     */
+    public $cardTypes = array(4 => 'Visa', 5 => 'MasterCard', 3 => 'American Express', 6 => 'Discover Card',
+                              8 => 'Diners Club', 1 => 'JCB (Japanese Credit Bureau)', 7 => 'Australian BankCard',
+                              2 => 'enRoute');
+
+    /**
+     * Validates the length of credit card number is correct for the card type
+     *
+     * @param int $cc
+     * @param int $cardType This must match the key from the $this->cardTypes array
+     * @return boolean
+     */
+    public function isValidCcLength($cc, $cardType) {
+        $length[16] = array(1, 4, 5, 6, 7); //JCB, Visa, MasterCard, Discover Card, Australian BankCard
+        $length[15] = array(1, 2, 3); //JCB, enRoute, American Express
+        $length[14] = array(8); //Diners Club
+        $length[13] = array(4); //Visa
+        $ccLength = strlen($cc);
+        return (isset($length[$ccLength]) && in_array($cardType, $length[$ccLength]));
+    }
+
+    /**
+     * Flag set by $this->getCardTypeByPrefix() if a Diners Club card is a CarteBlanch card
+     *
+     * @var boolean
+     */
+    public $isCarteBlanch;
+
+    /**
+     * Determines credit card type by the credit card number
+     *
+     * @param int $cc Can be the first four digits of the credit card number, the entire number or anything in between
+     * @return int Matches the keys in $this->cardTypes
+     */
+    public function getCardTypeByPrefix($cc) {
+        $cardType = 0;
+        $prefix = substr($cc, 0, 4);
+        	if ($prefix >= 4000 && $prefix <= 4999) {
+        	   $cardType = 4; //Visa
+        	} else if ($prefix >= 5100 && $prefix <= 5599) {
+        	   $cardType = 5; //MasterCard
+        	} else if (($prefix >= 3400 && $prefix <= 3499) || ($prefix >= 3700 && $prefix <= 3799)) {
+        	   $cardType = 3; //American Express
+        	} else if (($prefix >= 3000 && $prefix <= 3059) || ($prefix >= 3600 && $prefix <= 3699)
+        	           || ($prefix >= 3800 && $prefix <= 3899)) {
+        	   $cardType = 8; //Diners Club
+        	   $this->isCarteBlanch = ($prefix >= 3890 && $prefix <= 3899);
+        	} else if ($prefix >= 3528 && $prefix <= 3589) {
+        	   $cardType = 1; //JCB
+        	} else {
+        		switch ($prefix) {
+            		case 6011:
+                		$cardType = 6; //Discover Card
+                		break;
+            		case 1800:
+            		case 2131:
+                        $cardType = 1; //JCB
+            		    break;
+            		case 2014:
+            		case 2149:
+                		$cardType = 2; //enRoute
+                		break;
+            		case 5610:
+                		$cardType = 7; //Australian BankCard
+                		break;
+        		}
+        	}
+        return $cardType;
+    }
+
+    /**
+     * Verifies if a credit card number passes the Mod 10 specification
+     *
+     * @param int $cc
+     * @return boolean
+     */
+    public function isMod10Valid($cc) {
+        $cclen = strlen($cc);
+        if ($cclen > 16 || $cclen < 13 || !is_numeric($cc)) {
+            return false;
+        }
+        $digitsum = 0;
+        $currentbit = 1;
+        $startbit = ($cclen % 2);
+        	for ($x = 0; $x < $cclen; $x++) {
+            	$currentbit =! $currentbit;
+            	if ($currentbit == $startbit) {
+            	    $cc[$x] = $this->_mod10digits[$cc[$x]];
+            	}
+            	$digitsum += $cc[$x];
+        	}
+        return (boolean) !($digitsum % 10);
+    }
+
+    /**
+     * Charges a credit card through AuthorizeNet and records meta data in properties:
+     * $this->authnetResponse, $this->authnetResponseText, $this->authnetApprovalCode and $this->authnetTransactionId
+     *
+     * Requires AUTHNET_LOGIN and AUTHNET_PASSWORD to be set in the .config
+     *
+     * @param float $amount
+     * @param int $cc
+     * @param string $exp
+     * @return int 1=approved, 2=declined, 3=error
+     */
+    public function chargeAuthNet($amount, $cc, $exp) {
+        $postfields = array('x_login' => get::$config->AUTHNET_LOGIN,
+                            'x_password' => get::$config->AUTHNET_PASSWORD,
+                            'x_version' => '3.1',
+                            'x_delim_data' => 'TRUE',
+                            'x_method' => 'CC',
+                            'x_type' => 'AUTH_CAPTURE',
+                            'x_customer_ip' => $_SERVER['REMOTE_ADDR'],
+                            'x_amount' => $amount,
+                            'x_card_num' => $cc,
+                            'x_exp_date' => $exp);
+
+        $postdata = http_build_query($postfields);
+        $sockheader = 'POST /gateway/transact.dll HTTP/1.0' . PHP_EOL
+                    . 'Host: secure.authorize.net' . PHP_EOL
+                    . 'Content-type: application/x-www-form-urlencoded' . PHP_EOL
+                    . 'Content-length: ' . strlen($postdata) . PHP_EOL
+                    . 'Accept: */*';
+
+        $fp = stream_socket_client('ssl://secure.authorize.net:443', $errno, $errstr, 30);
+        fwrite($fp, $sockheader . PHP_EOL . PHP_EOL . $postdata . PHP_EOL . PHP_EOL);
+        while(trim(fgets($fp, 128)));
+        //error-suppression is needed for connecting to older IIS servers that do not close the connection properly
+        $responsestring = @fgets($fp);
+        fclose($fp);
+
+        $this->authnetResponse = explode(',', $responsestring);
+        $this->authnetResponseText = $this->authnetResponse[3];
+        $this->authnetApprovalCode = $this->authnetResponse[4];
+        $this->authnetTransactionId = $this->authnetResponse[6];
+        return $this->authnetResponse[0];
+    }
+
+    /**
+     * Redirect a user to a Google Payment checkout prepopulated with their order (& directing payment to your account)
+     *
+     * @param array $items
+     */
+    public function redirectToGoogleCheckout(array $items) {
+        $data = '<?xml version="1.0" encoding="UTF-8"?>
+<checkout-shopping-cart xmlns="http://checkout.google.com/schema/2">
+    <shopping-cart>
+        <items>';
+        foreach ($items as $item) {
+            $currency = (!isset($item['currency']) ? 'USD' : $item['currency']);
+            $data .= '
+            <item>
+                <item-name>' . $item['name'] . '</item-name>
+                <item-description>' . $item['description'] . '</item-description>
+                <unit-price currency="' . $currency . '">' . $item['price'] . '</unit-price>
+                <quantity>' . (!isset($item['quantity']) ? 1 : $item['quantity']) . '</quantity>
+            </item>';
+        }
+        $data .= '
+        </items>
+    </shopping-cart>
+    <checkout-flow-support>
+        <merchant-checkout-flow-support/>
+    </checkout-flow-support>
+</checkout-shopping-cart>
+';
+        if (!get::$config->GOOGLE_CHECKOUT['useSandbox']) {
+            $credentials = get::$config->GOOGLE_CHECKOUT['live'];
+            $url = 'checkout.google.com/api/checkout/v2/request/Merchant/';
+        } else {
+            $credentials = get::$config->GOOGLE_CHECKOUT['sandbox'];
+            $url = 'sandbox.google.com/checkout/api/checkout/v2/request/Merchant/';
+        }
+        $url = 'https://' . $credentials['id'] . ':' . $credentials['key'] . '@' . $url . $credentials['id'];
+        $errorLevel = error_reporting(E_ERROR);
+        $xml = get::component('post')->postRequest($url, $data);
+        error_reporting($errorLevel);
+        if ($xml) {
+            $url = trim(html_entity_decode(strip_tags($xml)));
+            load::redirect($url);
+        } else {
+            error_log('No Google Payment URL returned from: ' . $data);
+        }
+    }
+}

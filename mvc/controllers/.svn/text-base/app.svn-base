@@ -1,0 +1,181 @@
+<?php
+class appController { 
+    
+    public function conso() {
+        if (isset(mvc::$params[0])) {
+            $return['conso'] = get::model()->getConso(mvc::$params[0]);
+            return $return;
+        }
+    }
+
+    public function creer() {
+        if(isset($_POST['submit'])) {
+         $nb_salle_max = get::model('app')->getMaxSalle($_SESSION['id_tarif']);
+         if(get::model('app')->getSalle($_SESSION['id_utilisateur']) <= $nb_salle_max['max_salle']) {
+                $parametres = get::model()->getPara();
+                // Creation de la salle sur BBB
+                $return['create_room'] = get::component('bbbapi')->createMeetingArray( $_POST['name'], $_POST['room'], $parametres[1]['bienvenue'], $parametres[1]['codevip'], $parametres[1]['numero_tel'], $_POST['passmd'], $_POST['passap'], $parametres[1]['clebbb'], $parametres[1]['urlbbb'], $parametres[1]['urlbbbdefaut'] );
+                // On ajoute une salle au compteur
+                $args = array('id_tarif' => $_SESSION['id_tarif'], 'id_utilisateur' => $_SESSION['id_utilisateur'], 'nb_salle' => 1);
+                get::model('app')->addCompte($args);
+                if($return['create_room']['returncode'][0] == "SUCCESS") {
+                    if($return['create_room']['message'][0]  == "This conference was already in existence and may currently be in progress.") {
+                        return $return;
+                    } else {
+                        // On crée des participants
+                        load::redirect('/app/participant/' . $_POST['room']); //removes POST values
+                    }
+                } else {
+                    return $return;
+                }
+          } else {
+              echo "Nombre de salle atteinte";
+          }
+        }
+
+    }
+
+    public function cron() {
+        $return['cron'] = get::model()->getCron();
+        return $return;
+    }
+
+    public function facture() {
+        mvc::$layout = 'popup';
+        if (isset(mvc::$params[0])) {
+            $return['conso'] = get::model()->getConso(mvc::$params[0]);
+            return $return;
+        }
+    }
+
+    public function index() {
+        $parametres = get::model()->getPara();
+        $return['activity_room'] = get::component('bbbapi')->getMeetings( $parametres[1]['urlbbb'], $parametres[1]['clebbb'] );
+        $return['activity_room'] = simplexml_load_string($return['activity_room']);
+        return $return;
+    }
+
+    public function monitoring() {
+        
+    }
+
+    public function participant() {
+        if (isset($_POST['id_utilisateur']) && isset($_POST['submit'])) {
+            if(isset($_POST['plusieurs']) && !empty($_POST['plusieurs'])) {
+                $parametres = get::model()->getPara();
+                $plusieurs = str_getcsv($_POST['plusieurs'], "\n");
+                foreach($plusieurs as &$row) {
+                    $row = str_getcsv($row, ";");
+                    //print_r($row);
+                    $return['create_room'] = get::component('bbbapi')->joinURL($_POST['id_meeting'], $row[0] , $row[1], $parametres[1]['clebbb'], $parametres[1]['urlbbb']);
+                }
+
+            } else {
+                //$args = array('id_utilisateur' => $_POST['id_utilisateur'], 'nom' => $_POST['nom'], 'email' => $_POST['email'], 'passap' => $_POST['passap'], 'id_meeting' => $_POST['id_meeting']);
+                //$return['data'] = get::model()->_sqladdParticipant($args);
+                $parametres = get::model()->getPara();
+                $return['create_room'] = get::component('bbbapi')->joinURL($_POST['id_meeting'], $_POST['nom'] , $_POST['passap'], $parametres[1]['clebbb'], $parametres[1]['urlbbb']);
+
+            }
+            
+            // envoyer email si check invite
+            if(isset($_POST['invite']) && !empty($_POST['invite'])) {
+                $subject = 'Invitation a BBB';
+                $body = 'Clique sur le lien suivant<br /> ' . $return['create_room'];
+                $args = array('from' => 'no-reply@' . get::$config->SITE_DOMAIN,
+                                  'fromName' => get::$config->SITE_NAME, 'body' => $body,
+                                  'to' => $_POST['email'], 'html' => true,
+                                  'subject' => get::$config->SITE_NAME . ' ' . $subject);
+
+                get::component('email')->sendEmail($args);
+            }
+
+            load::redirect('/app'); //removes POST values
+            return $return;
+        }
+    }
+
+    public function planning() {
+        // Liste de groupe
+        if (isset(mvc::$params[0]) && !isset(mvc::$params[1])) {
+            $return['planning'] = get::model()->getPlanning(mvc::$params[0]);
+            return $return;
+        } elseif(isset(mvc::$params[0]) && mvc::$params[0] == "Activate") {
+                // Active la salle
+                $parametres = get::model()->getPara();
+                $passmd = uniqid();
+                $passap = uniqid();
+                $return['create_room'] = get::component('bbbapi')->createMeetingArray( "Moderateur", mvc::$params[1], $parametres[1]['bienvenue'], $parametres[1]['codevip'], $parametres[1]['numero_tel'], $passmd, $passap, $parametres[1]['clebbb'], $parametres[1]['urlbbb'], $parametres[1]['urlbbbdefaut'] );
+                //$return['create_room'] = get::component('bbbapi')->joinURL(mvc::$params[1], "Moderateur" , "mp", $parametres[1]['clebbb'], $parametres[1]['urlbbb']);
+                load::redirect('/app'); //removes POST values
+                return $return;
+        } elseif(isset(mvc::$params[0]) && isset(mvc::$params[1]) && mvc::$params[1] == 'addPlanning') {
+
+            // Ajout planning
+            if (isset($_POST['submit'])) {
+                if (isset($_POST['nom']) && empty($_POST['nom'])) {
+                    $return['errors'] = 'Le nom de la salle n\'est pas insérée';
+                    load::redirect('/app/planning/' . $_SESSION['email']); //removes POST values
+                    return $return;
+                } else {
+                $_POST['date_debut'] = $_POST['date_debut']['annee'] . '-' . $_POST['date_debut']['mois'] . '-' . $_POST['date_debut']['jour'] . ' ' . $_POST['date_debut']['heure'] . ':' . $_POST['date_debut']['minute'];
+                $_POST['date_fin'] = $_POST['date_fin']['annee'] . '-' . $_POST['date_fin']['mois'] . '-' . $_POST['date_fin']['jour'] . ' ' . $_POST['date_fin']['heure'] . ':' . $_POST['date_fin']['minute'];
+                $args = array('nom' => $_POST['nom'], 'date_debut' => $_POST['date_debut'], 'date_fin' => $_POST['date_fin'], 'descriptif' => $_POST['descriptif'], 'open_salle' => (!empty($_POST['open_salle'])) ? $_POST['open_salle'] : '', 'id_utilisateur' => $_SESSION['id_utilisateur']);
+                $return['data'] = get::model()->addPlanning($args);
+                load::redirect('/app/planning/' . $_SESSION['email']); //removes POST values
+                }
+                return;
+            }
+
+        }
+    }
+
+    public function profil() {
+        // Liste infos de l'utilisateur
+        if (isset(mvc::$params[0]) && !isset(mvc::$params[1])) {
+            $return['profil'] = get::model()->getProfil(mvc::$params[0]);
+            return $return;
+            
+        } else {
+            // Modifier utilisateur
+            if (isset(mvc::$params[1]) && mvc::$params[1] == 'updateUser') {
+            if (isset($_POST['email']) && isset($_POST['submit'])) {
+
+                // Si le passe est modifié
+                if (!isset($_POST['password']) && !isset($_POST['password2']) && $_POST['password'] == $_POST['password2']) {
+                    $args = array('nom' => $_POST['nom'], 'prenom' => $_POST['prenom'], 'email' => $_POST['email'], 'tel' => $_POST['tel'], 'raison_social' => $_POST['raison_social'], 'adresse' => $_POST['adresse'], 'code_postal' => $_POST['code_postal'], 'ville' => $_POST['ville'], 'newsletters' => $_POST['newsletters'], 'password' => $_POST['password']);
+                } else {
+                    $args = array('nom' => $_POST['nom'], 'prenom' => $_POST['prenom'], 'email' => $_POST['email'], 'tel' => $_POST['tel'], 'raison_social' => $_POST['raison_social'], 'adresse' => $_POST['adresse'], 'code_postal' => $_POST['code_postal'], 'ville' => $_POST['ville'], 'newsletters' => $_POST['newsletters']);
+                }
+                    
+                $return['data'] = get::model()->updateProfil($_POST['email'], $args);
+                load::redirect('/app/profil/'.$_POST['email']); //removes POST values
+                return;
+            }
+            }
+
+        }
+        
+    }
+
+    public function supprimer() {
+        if (isset(mvc::$params[0]) && mvc::$params[0] == "planning") {
+            $return['delgroupe'] = get::model()->deletePlanning(mvc::$params[1]);
+            load::redirect('/app/planning/'. $_SESSION['email']); //removes POST values
+            return $return;
+        }
+    }
+
+    public function tarifs() {
+            // Modifier tarif utilisateur
+            if (isset(mvc::$params[1]) && mvc::$params[1] == 'updateTarif') {
+                if (isset($_SESSION['email']) && isset($_POST['submit'])) {
+                   $args = array('id_tarif' => $_POST['tarif']);
+                   $return['data'] = get::model()->updateTarif($_SESSION['email'], $args);
+                   load::redirect('/app/tarifs/'.$_SESSION['email']); //removes POST values
+                   return;
+                }
+            }
+    }
+
+}

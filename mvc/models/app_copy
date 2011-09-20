@@ -1,0 +1,366 @@
+<?php
+class appModel {
+
+    /**
+     * Table/collection name
+     * on the same database
+     * @var string
+     */
+    protected $_compteur = 'compteur';
+    protected $_connection = 'connection';
+    protected $_consommation = 'consommation';
+    protected $_parametres = 'parametres';
+    protected $_participant = 'participant';
+    protected $_planning = 'planning';
+    protected $_tarifs = 'tarifs';
+    protected $_utilisateur = 'utilisateur';
+
+    /**
+     * Database type to use
+     * @var string Either sql or mongo
+     */
+    protected $_db;
+
+    /**
+     * Mongo collection object cache
+     * @var MongoCollection
+     */
+    protected $_compteur;
+    protected $_connection;
+    protected $_consommation;
+    protected $_parametres;
+    protected $_participant;
+    protected $_planning;
+    protected $_tarifs;
+    protected $_utilisateur;
+
+    /**
+     * Sets $this->_db and if it is Mongo then it sets the MongoDB collection
+     */
+    public function __construct() {
+        $this->_db = (!in_array('mongo', config::$modelObjects) ? 'sql' : 'mongo');
+    }
+
+    /**
+     * Switchboard to route to either SQL or Mongo methods
+     *
+     * @param string $name
+     * @param array $args
+     */
+    public function __call($name, array $args) {
+        $name = '_' . $this->_db . ucfirst($name);
+        if ($this->_db == 'mongo' && !$this->_compteur) {
+            $this->_compteur = $this->mongo->selectCollection($this->_compteur);
+            $this->_connection = $this->mongo->selectCollection($this->_connection);
+            $this->_consommation = $this->mongo->selectCollection($this->_consommation);
+            $this->_parametres = $this->mongo->selectCollection($this->_parametres);
+            $this->_participant = $this->mongo->selectCollection($this->_participant);
+            $this->_planning = $this->mongo->selectCollection($this->_planning);
+            $this->_tarifs = $this->mongo->selectCollection($this->_tarifs);
+            $this->_utilisateur = $this->mongo->selectCollection($this->_utilisateur);
+        }
+        return call_user_func_array(array($this, $name), $args);
+    }
+
+
+
+    /**
+     * Delete Groupe
+     */
+    public function _sqldeletePlanning() {
+        $sql = 'delete from  ' . $this->_planning . '  where id_planning=' . $this->db->cleanString(mvc::$params[1]);
+        $this->db->query($sql);
+    }
+    public function _mongodeletePlanning() {
+        $row = $this->_planning->remove(mvc::$params[1]);
+        return;
+    }    
+
+    /**
+     * Get Participant
+     */
+    public function _sqlgetParticipant($id_meeting) {
+        
+        $sql = 'select id_participant, id_utilisateur, email, nom from ' . $this->_participant . ' where id_meeting=' . $this->db->cleanString($id_meeting);
+        $res = $this->db->query($sql);
+        while ($row = $res->fetch_assoc()) {
+            $participant[$row['id_participant']] = array('nom' => $row['nom'], 'email' => $row['email']);
+        }
+        if(isset($participant)) 
+            return $participant;
+        else
+            return;
+    }
+    public function _mongogetParticipant() {
+        $participant = $this->_participant->find();
+        return;
+    }
+
+    /**
+     * Get Profil
+     */
+    public function _sqlgetProfil($email) {
+        $sql = 'select id_utilisateur, nom, prenom, email, tel, raison_social, adresse, code_postal, ville, newsletters from ' . $this->_utilisateur . ' where email=?';
+        $res = $this->db->pquery($sql, $email);
+        return $res->fetch_assoc();
+    }
+    public function _mongogetProfil() {
+        $res = $this->_utilisateur->find();
+        return $res;
+    }
+
+    /**
+     * Get Conso
+     */
+    public function _sqlgetConso($email) {
+        $sql = 'select id_utilisateur from ' . $this->_utilisateur . ' where email=' . $this->db->cleanString($email);
+        $res = $this->db->query($sql);
+        $row = $res->fetch_assoc();
+        $sql = 'select id_consommation, date, prix from ' . $this->_consommation . ' where id_utilisateur=' . $this->db->cleanString($row['id_utilisateur']) . ' and valide = 1';
+        $res = $this->db->query($sql);
+        while ($row = $res->fetch_assoc()) {
+            $conso[$row['id_consommation']] = array('id_consommation' => $row['id_consommation'],'date' => $row['date'], 'prix' => $row['prix']);
+        }
+        return $conso;
+    }
+    public function _mongogetConso($email) {
+        $this->_utilisateur->ensureIndex($email);
+        $id_utilisateur = $this->_utilisateur->find($email);
+        $res = $this->_consommation->find($id_utilisateur);
+        return;
+    }
+
+    /**
+     * Get Conso
+     */
+    public function _sqlgetFacture($id_facture) {
+        $sql = 'select date, prix, id_tarif from ' . $this->_consommation . ' where id_consommation=' . (int) $id_facture;
+        $res = $this->db->query($sql);
+        return $res->fetch_assoc();
+    }
+    public function _mongogetFacture() {
+        $res = $this->_consommation->find();
+        return;
+    }
+
+    /**
+     * Get tarifs
+     */
+    public function _sqlgetDetailFacture($id_tarif) {
+        $sql = 'select id_tarif, prix, remise, description, nom, options from ' . $this->_tarifs . ' where id_tarif=' . (int) $id_tarif;
+        $res = $this->db->query($sql);
+        return $res->fetch_assoc();
+    }
+    public function _mongogetDetailFacture($id_tarif) {
+        $this->_tarifs->ensureIndex($id_tarif);
+        $res = $this->_tarifs->find($id_tarif);
+        return;
+    }
+
+    /**
+     * Add Planning
+     */
+    public function _sqladdPlanning(array $args) {
+        $args = $this->db->cleanString($args);
+        foreach ($args as $key => $val) {
+            $sqlKey[] = $key;
+            $sqlval[] = $val;
+        }
+        $sql = 'insert into ' . $this->_planning . ' (' . implode(',', $sqlKey) . ') values(' . implode(',', $sqlval) . ')';
+        $this->db->query($sql);
+    }
+    public function _mongoaddPlanning(array $args = array()) {
+        $this->_planning->insert($args);
+    }
+
+    /**
+     * Add Participant
+     */
+    public function _sqladdParticipant(array $args) {
+        $args = $this->db->cleanString($args);
+        foreach ($args as $key => $val) {
+            $sqlKey[] = $key;
+            $sqlval[] = $val;
+        }
+        $sql = 'insert into ' . $this->_participant . ' (' . implode(',', $sqlKey) . ') values(' . implode(',', $sqlval) . ')';
+        $this->db->query($sql);
+
+    }
+    public function _mongoaddParticipant(array $args = array()) {
+        $this->_participant->insert($args);
+    }
+
+     /**
+     * Update Profil
+     */
+    public function _sqlupdateProfil($email, array $args) {
+        $args = $this->db->cleanString($args);
+        foreach ($args as $key => $val) {
+            $sqlCols[] = $key . '=' . $val;
+        }
+        $sql = 'update ' . $this->_utilisateur . ' set ' . implode(',', $sqlCols) . ' where email=' . $this->db->cleanString($email);
+        $this->db->query($sql);
+    }
+    public function _mongoupdateProfil($email, array $args = array()) {
+        $args['email'] = $email;
+        $this->_utilisateur->save($args);
+    }
+
+    /**
+     * count compteur
+     */
+    public function _sqlcountCompteur($id_utilisateur) {
+        $sql = 'select nb_salle from ' . $this->_compteur . ' where id_utilisateur=' . (int) $id_utilisateur;
+        $res = $this->db->query($sql);
+        return $res->fetch_assoc();
+    }
+    public function _mongocountCompteur($id_utilisateur) {
+        $res = $this->_compteur->findOne($id_utilisateur);
+        return;
+    }
+
+    /**
+     * Add or update compteur
+     */
+    public function _sqladdCompteur(array $args) {
+        $args = $this->db->cleanString($args);
+        $nb_salle = get::model()->countCompteur($_SESSION['id_utilisateur']);
+        if(empty($nb_salle) || $nb_salle == 0) {
+            foreach ($args as $key => $val) {
+                $sqlKey[] = $key;
+                $sqlval[] = $val;
+            }
+            $sql = 'insert into ' . $this->_compteur . ' (' . implode(',', $sqlKey) . ') values(' . implode(',', $sqlval) . ')';
+            $this->db->query($sql);
+        } else {
+            $sql = 'update ' . $this->_compteur . ' set nb_salle = ' . $nb_salle['nb_salle'] . '+1 where id_utilisateur=' . $this->db->cleanString($_SESSION['id_utilisateur']);
+            $this->db->query($sql);
+        }
+    }
+    public function _mongoaddCompteur(array $args = array()) {
+        $nb_salle = get::model()->countCompteur($_SESSION['id_utilisateur']);
+        if(empty($nb_salle) || $nb_salle == 0) {
+            $this->_compteur->insert($args);
+        } else {
+            $this->_compteur->save($args);
+        }
+    }
+
+     /**
+     * Update tarif
+     */
+    public function _sqlupdateTarif($email, array $args) {
+        foreach ($args as $key => $val) {
+            $sqlCols[] = $key . '=' . $val;
+        }
+
+        $sql = 'update ' . $this->_utilisateur . ' set ' . implode(',', $sqlCols) . ' where email=' . $this->db->cleanString($email);
+        $this->db->query($sql);
+
+        $sql = 'select id_tarif, prix from ' . $this->_tarifs . ' where id_tarif=' . (int) $val;
+        $res = $this->db->query($sql);
+        $row = $res->fetch_assoc();
+
+        $sql = 'insert into ' . $this->_consommation . ' (date, prix, id_utilisateur, id_tarif) values(NOW(), ' . $row['prix'] . ', ' . $_SESSION['id_utilisateur'] . ', ' . $row['id_tarif'] . ')';
+        $this->db->query($sql);
+        $_SESSION['id_tarif'] = $val;
+
+        $sql = 'select max(id_consommation) from ' . $this->_consommation . ' where id_utilisateur=' . (int) $_SESSION['id_utilisateur'];
+        $res = $this->db->query($sql);
+        $row = $res->fetch_assoc();
+
+        return $row;
+    }
+
+    /**
+     * Get tarifs
+     */
+    public function _sqlgetTarifs() {
+        $sql = 'select id_tarif, prix, remise, description, nom, options from ' . $this->_tarifs;
+        $res = $this->db->query($sql);
+        while ($row = $res->fetch_assoc()) {
+            $tarifs[$row['id_tarif']] = array('id_tarif' => $row['id_tarif'], 'prix' => $row['prix'], 'remise' => $row['remise'], 'description' => $row['description'], 'nom' => $row['nom'], 'options' => $row['options']);
+        }
+        return $tarifs;
+    }
+    public function _mongogetTarifs() {
+        $res = $this->_tarifs->find();
+        return;
+    }
+
+    /**
+     * Get tarifs
+     */
+    public function _sqlgetUserTarifs($email) {
+        $sql = 'select id_tarif from ' . $this->_utilisateur . ' where email=' . $this->db->cleanString($email);
+        $res = $this->db->query($sql);
+        $row = $res->fetch_assoc();
+        return $row;
+    }
+
+     /**
+     * Get register user day
+     */
+    public function _sqlgetUserRegisterDay($email) {
+        $sql = 'select date_insertion from ' . $this->_utilisateur . ' where email=' . $this->db->cleanString($email);
+        $res = $this->db->query($sql);
+        $row = $res->fetch_assoc();
+        return $row;
+    }
+
+    /**
+     * Get Salle
+     */
+    public function _sqlgetSalleUser($id_utilisateur) {
+        $sql = 'select nb_salle from ' . $this->_compteur . ' where id_utilisateur=' . (int) $id_utilisateur;
+        $res = $this->db->query($sql);
+        return $res->fetch_assoc();
+    }
+
+    /**
+     * Get Max Salle by tarif
+     */
+    public function _sqlgetMaxSalle($id_tarif) {
+        $sql = 'select max_salle from ' . $this->_tarifs . ' where id_tarif=' . (int) $id_tarif;
+        $res = $this->db->query($sql);
+        return $res->fetch_assoc();
+    }
+
+    /**
+     * Get Paramètres
+     */
+    public function _sqlgetPara() {
+        $sql = 'select id_parametres, urlbbb, clebbb, delai, codevip, numero_tel, urlbbbdefaut, bienvenue from ' . $this->_parametres;
+        $res = $this->db->query($sql);
+        while ($row = $res->fetch_assoc()) {
+            $parametres[$row['id_parametres']] = array('urlbbb' => $row['urlbbb'], 'clebbb' => $row['clebbb'], 'delai' => $row['delai'], 'codevip' => $row['codevip'], 'numero_tel' => $row['numero_tel'], 'bienvenue' => $row['bienvenue'], 'urlbbbdefaut' => $row['urlbbbdefaut']);
+        }
+        return $parametres;
+    }
+
+    /**
+     * Get Paramètres SMTP
+     */
+    public function _sqlgetParaSmtp() {
+        $sql = 'select id_parametres, host, port, auth, usersmtp, passsmtp from ' . $this->_parametres;
+        $res = $this->db->query($sql);
+        while ($row = $res->fetch_assoc()) {
+            $parametres[$row['id_parametres']] = array('host' => $row['host'], 'port' => $row['port'], 'auth' => $row['auth'], 'usersmtp' => $row['usersmtp'], 'passsmtp' => $row['passsmtp']);
+        }
+        return $parametres;
+    }
+
+
+    /**
+     * Cron Planning
+     */
+    public function _sqlgetCron() {
+        $sql = 'select id_planning, nom, date_debut, date_fin from ' . $this->_planning . ' where open_salle=1';
+        $res = $this->db->query($sql);
+        while ($row = $res->fetch_assoc()) {
+            $cron[$row['id_planning']] = array('id_planning' => $row['id_planning'], 'nom' => $row['nom'], 'date_debut' => $row['date_debut'], 'date_fin' => $row['date_fin']);
+        }
+        if(isset($cron)) return $cron;
+    }
+
+}

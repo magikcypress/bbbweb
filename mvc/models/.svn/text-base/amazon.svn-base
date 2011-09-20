@@ -1,0 +1,78 @@
+<?php
+/**
+ * Cache for the Amazon component
+ */
+class amazonModel extends model {
+    /**
+     * Internal array of column names
+     *
+     * @var array
+     */
+    protected $_cols = array('supplyid', 'title', 'url', 'thumbnailsrc', 'thumbnailheight', 'thumbnailwidth');
+
+    /**
+     * Attempt to retrieve item data from cache
+     *
+     * @param mixed $items
+     * @return array
+     */
+    public function getCache($items) {
+        $titles = array();
+        $items = $this->db->cleanString($items);
+        $sql = 'select ' . implode(', ', $this->_cols) . ' from amazon_cache where supplyid'
+             . (!is_array($items) ? '=' . $items : ' in (' . implode(', ', $items) . ')')
+             . ' and lastupdate > (current_timestamp - interval 1 week) order by title';
+        $res = $this->db->query($sql);
+        if (!$res) {
+            $this->initializeDb();
+            $res = $this->db->query($sql);
+        }
+        while ($row = $res->fetch_assoc()) {
+            $thumb = array('src' => $row['thumbnailsrc'], 'height' => $row['thumbnailheight'],
+                           'width' => $row['thumbnailwidth'], 'alt' => $row['title']);
+            $titles[$row['supplyid']] = array('title' => $row['title'], 'url' => $row['url'], 'thumbnail' => $thumb);
+        }
+        return $titles;
+    }
+
+    /**
+     * Insert or replace items in cache
+     *
+     * Uses MySQL/SQLite-specific replace-into syntax, other databases will need to adjust
+     *
+     * @param mixed $items
+     */
+    public function updateCache($items) {
+        foreach ($items as $supplyId => $properties) {
+            $properties = $this->db->cleanString($properties);
+            $sqlRecords[] = '(' . $this->db->cleanString($supplyId) . ', ' . $properties['title'] . ', '
+                          . $properties['url'] . ', ' . $properties['thumbnail']['src'] . ', '
+                          . $properties['thumbnail']['height'] . ', ' . $properties['thumbnail']['width']
+                          . ', current_timestamp)';
+        }
+        if (isset($sqlRecords)) {
+            $sql = 'replace into amazon_cache (' . implode(', ', $this->_cols) . ', lastupdate) values '
+                 . implode(', ', $sqlRecords);
+            $this->db->query($sql);
+        }
+    }
+
+    /**
+     * Automatically creates the database table for the cache
+     *
+     * Uses ISO-standard SQL syntax - performance would improve if you customize for your database, eg.:
+     * MySQL should change the "int(3)" columns to "tinyint(3) unsigned"
+     */
+    public function initializeDb() {
+        $sql = 'create table amazon_cache (
+                supplyid varchar(14) not null primary key,
+                title varchar(255) not null,
+                url varchar(255) not null,
+                thumbnailsrc varchar(255) null,
+                thumbnailheight int(3) null,
+                thumbnailwidth int(3) null,
+                lastupdate date not null,
+                index(lastupdate))';
+        $this->db->query($sql);
+    }
+}

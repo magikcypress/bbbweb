@@ -1,0 +1,29 @@
+K 25
+svn:wc:ra_dav:version-url
+V 42
+/bbbwebclient/!svn/ver/19/vork/mvc/layouts
+END
+popup
+K 25
+svn:wc:ra_dav:version-url
+V 48
+/bbbwebclient/!svn/ver/30/vork/mvc/layouts/popup
+END
+default
+K 25
+svn:wc:ra_dav:version-url
+V 50
+/bbbwebclient/!svn/ver/40/vork/mvc/layouts/default
+END
+rss
+K 25
+svn:wc:ra_dav:version-url
+V 45
+/bbbwebclient/!svn/ver/5/vork/mvc/layouts/rss
+END
+mobile
+K 25
+svn:wc:ra_dav:version-url
+V 49
+/bbbwebclient/!svn/ver/40/vork/mvc/layouts/mobile
+END

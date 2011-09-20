@@ -1,0 +1,42 @@
+<?php
+class appModel {
+ /**
+     * Table/collection name - only need to change this if you will be operating multiple Vork account instances
+     * on the same database
+     * @var string
+     */
+    protected $_table = 'utilisateur';
+
+    /**
+     * Database type to use
+     * @var string Either sql or mongo
+     */
+    protected $_db;
+
+    /**
+     * Mongo collection object cache
+     * @var MongoCollection
+     */
+    protected $_mongo;
+
+    /**
+     * Sets $this->_db and if it is Mongo then it sets the MongoDB collection
+     */
+    public function __construct() {
+        $this->_db = (!in_array('mongo', config::$modelObjects) ? 'sql' : 'mongo');
+    }
+
+    /**
+     * Switchboard to route to either SQL or Mongo methods
+     *
+     * @param string $name
+     * @param array $args
+     */
+//    public function __call($name, array $args) {
+//        $name = '_' . $this->_db . ucfirst($name);
+//        if ($this->_db == 'mongo' && !$this->_mongo) {
+//            $this->_mongo = $this->mongo->selectCollection($this->_table);
+//        }
+//        return call_user_func_array(array($this, $name), $args);
+//    }
+}

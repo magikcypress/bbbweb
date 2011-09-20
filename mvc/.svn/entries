@@ -1,0 +1,79 @@
+10
+
+dir
+20
+https://svn.legeardweb.net/bbbwebclient/vork/mvc
+https://svn.legeardweb.net/bbbwebclient
+
+
+
+2011-03-03T01:12:03.247989Z
+19
+svn
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+eb1080de-0f7d-4648-9ad9-e04274c4fe6e
+
+layouts
+dir
+
+tmp
+dir
+
+helpers
+dir
+
+models
+dir
+
+langs
+dir
+
+components
+dir
+
+controllers
+dir
+
+lib
+dir
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+deleted
+
+elements
+dir
+
+views
+dir
+

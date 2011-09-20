@@ -1,0 +1,202 @@
+<?php
+/**
+ * Replace long URLs with short URLs that are easy to type and dictate
+ */
+class shorturlModel extends model {
+    /**
+     * Table/collection name - only need to change this if you will be operating multiple Vork account instances
+     * on the same database
+     * @var string
+     */
+    protected $_table = 'shorturls';
+
+    /**
+     * Database type to use
+     * @var string Either sql or mongo
+     */
+    protected $_db;
+
+    /**
+     * Mongo collection object cache
+     * @var MongoCollection
+     */
+    protected $_mongo;
+
+    /**
+     * Sets $this->_db and if it is Mongo then it sets the MongoDB collection
+     */
+    public function __construct() {
+        $this->_db = (!in_array('mongo', config::$modelObjects) ? 'sql' : 'mongo');
+    }
+
+    /**
+     * Switchboard to route to either SQL or Mongo methods
+     *
+     * @param string $name
+     * @param array $args
+     */
+    public function __call($name, array $args) {
+        $name = '_' . $this->_db . ucfirst($name);
+        if ($this->_db == 'mongo' && !$this->_mongo) {
+            $this->_mongo = $this->mongo->selectCollection($this->_table);
+        }
+        return call_user_func_array(array($this, $name), $args);
+    }
+
+    /**
+     * Retrieve the full URL for a short URL
+     *
+     * @param string $shortUrl
+     * @return string Returns false if not found
+     */
+    protected function _sqlGetShortUrl($shortUrl) {
+        $sql = 'select url from ' . $this->_table . ' where shorturl=' . $this->db->cleanString($shortUrl);
+        $res = $this->db->query($sql);
+        $row = $res->fetch_row();
+        return ($row ? current($row) : $row);
+    }
+    protected function _mongoGetShortUrl($shortUrl) {
+        $row = $this->_mongo->findOne(array('_id' => $shortUrl));
+        return ($row ? $row['url'] : $row);
+    }
+
+    /**
+     * Log the forwarding action
+     * @param string $shortUrl
+     */
+    protected function _sqlLogForward($shortUrl) {
+        $args['table'] = $this->_table . '_log';
+        $args['vals']['shorturl'] = $this->db->cleanString($shortUrl);
+        if (isset($_SERVER['HTTP_REFERER'])) {
+            $args['vals']['referrer'] = $this->db->cleanString($_SERVER['HTTP_REFERER']);
+        }
+        if (isset($_SERVER['REMOTE_ADDR']) && filter_var($_SERVER['REMOTE_ADDR'], FILTER_VALIDATE_IP)) {
+            $args['vals']['ip'] = $this->_sqlIp($_SERVER['REMOTE_ADDR']);
+        }
+        $args['vals']['occurrence'] = 'current_timestamp';
+        $sql = $this->db->insertSql($args);
+        $this->db->query($sql);
+    }
+    protected function _mongoLogForward($shortUrl) {
+        $args = array('shorturl' => $shortUrl, 'occurrence' => time());
+        if (isset($_SERVER['HTTP_REFERER'])) {
+            $args['referrer'] = $_SERVER['HTTP_REFERER'];
+        }
+        if (isset($_SERVER['REMOTE_ADDR']) && filter_var($_SERVER['REMOTE_ADDR'], FILTER_VALIDATE_IP)) {
+            $args['ip'] = $_SERVER['REMOTE_ADDR'];
+        }
+        return $this->mongo->selectCollection($this->_table . '_log')->insert($args);
+    }
+
+    /**
+     * Adds a new short URL
+     *
+     * If a URL already has been shortened then this method will return the original shortUrl, it will not reshorten it.
+     *
+     * @param string $url
+     * @return string
+     */
+    protected function _sqlAddShortUrl($url) {
+        if (substr($url, -1) == '/') { //strip trailing slash for URL consistency
+            $url = substr($url, 0, -1);
+        }
+        $sql = 'select shorturl from ' . $this->_table . ' where url=' . $this->db->cleanString($url);
+        if (!$res = $this->db->query($sql)) {
+            $this->_initializeDatabase();
+            $res = $this->db->query($sql);
+        }
+        $row = $res->fetch_row();
+        if ($row) { //if URL is already in the database just retrun the existing shortUrl
+            $shortUrl = current($row);
+        } else {
+            $shortUrl = $this->_generateShortUrl();
+            $args['table'] = $this->_table;
+            $quote = $this->db->surroundingQuote;
+            $args['vals'] = array('shorturl' => $quote . $shortUrl . $quote, 'added' => 'current_timestamp',
+                                  'url' => $this->db->cleanString($url));
+            if (isset($_SERVER['REMOTE_ADDR']) && filter_var($_SERVER['REMOTE_ADDR'], FILTER_VALIDATE_IP)) {
+                $args['vals']['ip'] = $this->_sqlIp($_SERVER['REMOTE_ADDR']);
+            }
+            $sql = $this->db->insertSql($args);
+            $this->db->query($sql);
+        }
+        return $shortUrl;
+    }
+    protected function _mongoAddShortUrl($url) {
+        if (substr($url, -1) == '/') { //strip trailing slash for URL consistency
+            $url = substr($url, 0, -1);
+        }
+        $row = $this->_mongo->findOne(array('url' => $url));
+        if ($row) { //if URL is already in the database just retrun the existing shortUrl
+            $shortUrl = $row['_id'];
+        } else {
+            $shortUrl = $this->_generateShortUrl();
+            $args = array('_id' => $shortUrl, 'added' => time(), 'url' => $url);
+            if (isset($_SERVER['REMOTE_ADDR']) && filter_var($_SERVER['REMOTE_ADDR'], FILTER_VALIDATE_IP)) {
+                $args['ip'] = $_SERVER['REMOTE_ADDR'];
+            }
+            $this->_mongo->save($args);
+            $this->_mongo->ensureIndex(array('url' => true), array('unique' => true));
+        }
+        return $shortUrl;
+    }
+
+    /**
+     * Generates a 4-digit alphanumeric shortUrl consisting of easily-differentiated characters only
+     * @return string
+     */
+    protected function _generateShortUrl() {
+        //only letters that are easy to visually differentiate
+        $chars = array('b', 'c', 'd', 'f', 'g', 'h', 'j', 'k', 'm', 'n',
+                       'p', 'q', 'r', 's', 't', 'v', 'w', 'x', 'y', 'z');
+        $alphanums = array_merge($chars, range(2, 9));
+        $charset = array_rand($alphanums, 4); //28 chars to the power of 4 = 614,656 combinations
+        $shortUrl = $alphanums[$charset[0]] . $alphanums[$charset[1]]
+                  . $alphanums[$charset[2]] . $alphanums[$charset[3]];
+        if ($this->getShortUrl($shortUrl)) { //that shorturl already exists, generate another
+            $shortUrl = $this->_generateShortUrl();
+        }
+        return $shortUrl;
+    }
+
+    /**
+     * Wrap the IP address for inserting into SQL - for MySQL this will also convert A-to-N
+     *
+     * @param string $ip
+     * @return string
+     */
+    protected function _sqlIp($ip) {
+        $dbParents = class_parents($this->db);
+        $isMysql = (isset($dbParents['mysqli']) || isset($dbParents['mysql']));
+        $quote = $this->db->surroundingQuote;
+        return ($isMysql ? 'inet_aton(' . $quote . $ip . $quote . ')' : $this->db->cleanString($ip));
+
+    }
+
+    /**
+     * Creates the database tables
+     *
+     * If your database does not support varchars over 255 chars or the datetime column type then you will need
+     * to adjust the data types used in this method. Oracle users may also swap varchar with varchar2.
+     */
+    protected function _initializeDatabase() {
+        $dbParents = class_parents($this->db);
+        $isMysql = (isset($dbParents['mysqli']) || isset($dbParents['mysql']));
+        $sql = 'create table ' . $this->_table . ' (
+                shorturl char(4) not null primary key,
+                url varchar(765) not null unique,
+                added datetime not null,
+                ip ' . ($isMysql ? 'int(10) unsigned' : 'varchar(16)') . ' null)';
+        $this->db->query($sql);
+
+        $sql = 'create table ' . $this->_table . '_log (
+                shorturl char(4) not null,
+                referrer varchar(255) null,
+                occurrence datetime not null,
+                ip ' . ($isMysql ? 'int(10) unsigned' : 'varchar(16)') . ' null)';
+        if ($isMysql) {
+            $sql .= ' engine=archive';
+        }
+        $this->db->query($sql);
+    }
+}

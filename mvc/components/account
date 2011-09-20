@@ -1,0 +1,147 @@
+<?php
+/**
+ * Account-related functionality
+ */
+class accountComponent {
+    /**
+     * Keys to set/unset when logging in/out
+     *
+     * @var array
+     */
+    protected $_sessionKeys = array('_id', 'name');
+
+    /**
+     * Sets the session keys upon login
+     *
+     * @param array $row This should contain at least the keys defined in $this->_sessionKeys
+     */
+    protected function _setLoginSession(array $row) {
+        foreach ($this->_sessionKeys as $key) {
+            $_SESSION[$key] = $row[$key];
+        }
+    }
+
+    /**
+     * Attempt to log a user in
+     *
+     * @param string $email
+     * @param string $pass
+     * @return mixed
+     */
+    public function login($email, $pass) {
+        $row = get::model('account')->validateLogin(trim($email), trim($pass));
+        if ($row) {
+            $this->_setLoginSession($row);
+        }
+        return $row;
+    }
+
+    /**
+     * Listens for login submission and handles it if found
+     *
+     * @param string $location Optional, if omitted user will return to the same page upon successful login
+     * @return array
+     */
+    public function checkLogin($location = null) {
+        if (isset($_POST['login_email']) && isset($_POST['login_pass'])){
+            if (isset($_POST['action']) && $_POST['action'] == 'forgotPassword') {
+                $this->forgotPassword();
+            } else if (!$this->login($_POST['login_email'], $_POST['login_pass'])) {
+                $_POST['errors']['login'] = 'Incorrect email or password';
+            } else {
+                $redirect = true;
+            }
+        } else if (isset($_POST['logout'])) {
+            $this->logout();
+            $redirect = true;
+        }
+        if (isset($redirect)) {
+            load::redirect(!$location ? get::url() : $location); //dump the post data
+        }
+    }
+
+    /**
+     * Log out a user
+     */
+    public function logout() {
+        foreach ($this->_sessionKeys as $key) {
+           unset($_SESSION[$key]);
+        }
+    }
+
+    /**
+     * Send password reminder
+     *
+     * @return array
+     */
+    public function forgotPassword() {
+        if (isset($_POST['login_email']) && $_POST['login_email']) {
+            $_POST = array_map('trim', $_POST);
+            if (filter_var($_POST['login_email'], FILTER_VALIDATE_EMAIL)) {
+                $pass = get::model('account')->retrievePass($_POST['login_email']);
+                if ($pass) {
+                    $body = get::element('emails/retrievePass', array('email' => $_POST['email'],
+                                                                      'pass' => $pass));
+                    $args = array('from' => 'no-reply@' . get::$config->SITE_DOMAIN,
+                                  'fromName' => get::$config->SITE_NAME, 'body' => $body,
+                                  'to' => $_POST['email'], 'html' => true,
+                                  'subject' => get::$config->SITE_NAME . ' account password');
+                    get::component('email')->sendEmail($args);
+                } //no-else, no need to provide confirmation to invalid users
+                $alert = 'Your password has been emailed to you';
+            } else {
+                $alert = 'Email does not appear to be typed correctly';
+            }
+        } else {
+            $alert = 'Email is required to retrieve your password';
+        }
+        $_POST['errors']['login'] = $alert;
+    }
+
+    /**
+     * Verify typical required user data has been entered and is valid
+     *
+     * Required fields are fullname, email, address1, city, tel, country
+     * and if country is US then state and zip are also required
+     *
+     * @return array
+     */
+    public function validateRequired() {
+        $_POST = array_map('trim', $_POST);
+        if (!filter_var($_POST['email'], FILTER_VALIDATE_EMAIL)) {
+            $error['email'] = 'Email does not appear to be valid';
+        } else if (get::model('account')->accountExists($_POST['email'])) {
+            $error['email'] = 'There already is an account with that email';
+        }
+        $passLen = strlen($_POST['pass']);
+        if ($passLen < 4) {
+            $error['pass'] = 'Password is too short';
+        } else if ($passLen > 16) {
+            $error['pass'] = 'Password is too long';
+        } else if ($_POST['pass'] != $_POST['passconfirm']) {
+            $error['pass'] = 'Password and confirmation do not match, please retype both fields';
+        }
+        $requiredFields = array('fullname' => 'Name', 'address1' => 'Address', 'city' => 'City');
+        foreach ($requiredFields as $key => $label) {
+            if (strlen($_POST[$key]) < 3) {
+                $error[$key] = $label . ' is required';
+            }
+        }
+        if (strlen(preg_replace('/\D/', '', $_POST['tel'])) < 6) {
+            $error['tel'] = 'Telephone is required';
+        }
+        if ($_POST['country'] == 'US') {
+            if (!$_POST['state']) {
+                $error['state'] = 'State is required for those in the USA';
+            }
+            $_POST['zip'] = preg_replace('/\D/', '', $_POST['zip']);
+            $zipLen = strlen($_POST['zip']);
+            if ($zipLen != 5 && $zipLen != 9) {
+                $error['zip'] = 'Zip code is required for those in the USA';
+            } else if ($zipLen == 9) {
+                $_POST['zip'] = substr($_POST['zip'], 0, 5) . '-' . substr($_POST['zip'], 5);
+            }
+        }
+        return (isset($error) ? $error : array());
+    }
+}

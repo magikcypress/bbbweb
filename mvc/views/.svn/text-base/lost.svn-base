@@ -1,0 +1,34 @@
+<div class="span-23" style="text-align: center">
+
+<?php
+
+    $lang = get::component('lang')->Lang();
+
+    echo $html->h1($lang['mot_passe_perdu']);
+
+    $profilAction = "";
+    if (!isset($profilAction))
+        $profilAction = get::url(array('ssl' => false));
+
+    if(isset($_POST['email']) && !empty($_POST['email']) && !empty($_POST['token'])) {
+        get::component('login')->forgotPassword();
+        $error = $lang['email_passe_perdu'];        
+    }
+
+    if(isset($error) && !empty($error)) {
+        echo '<div class="errormessageb">' . $error . '</div><br/ ><br/ >';
+    } else {
+    echo $form->open(array('action' => $profilAction, 'method' => 'post'));
+    // Test info
+    if (isset($_POST['email']) && empty($_POST['email'])) {
+        $_POST['errors']['email'] = $lang['erreur_email'];
+    }
+
+    echo $form->input(array('type' => 'text', 'name' => 'email', 'value' => '', 'label' => $lang['adresse_email']));
+    echo $form->input(array('type' => 'hidden', 'name' => 'token', 'value' => uniqid()));
+    echo $form->input(array('type' => 'submit','name' => 'submit', 'value' => $lang['envoyer']));
+    echo $form->close();
+    }
+?>
+
+</div>

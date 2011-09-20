@@ -1,0 +1,8 @@
+<?php
+    echo get::component('activity')->liveActivity();
+?>
+        <script type="text/javascript" src="/js/activity.js"></script>
+        <script type="text/javascript" src="/js/md5.js"></script>
+        <script type="text/javascript" src="/js/jquery.xml2json.js"></script>
+        <p id="no_meetings"></p>
+        <div id="meetings"></div>

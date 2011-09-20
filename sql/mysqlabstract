@@ -1,0 +1,59 @@
+<?php
+/**
+ * To use the older [deprecated] PHP extension for MySQL, remove the letter i from the end of "mysqli" on the next line
+ */
+abstract class mysqlabstract extends mysqli {
+    /**
+     * The database method used to sanitize user input strings
+     */
+    const ESCAPE_STRING = 'real_escape_string';
+
+    /**
+     * Returns the SQL to get the column type definition
+     *
+     * This method is MySQL-specific and may also work in newer versions of PostgreSQL.
+     *
+     * @param string $table
+     * @param string $column
+     * @return string
+     */
+    public function getColumnTypeSql($table, $column) {
+        return "select column_type from information_schema.columns where table_schema='" . get::$config->DB_NAME
+             . "' and table_name=" . $this->cleanString($table) . " and column_name=" . $this->cleanString($column);
+    }
+
+    /**
+     * Returns the valid options of a column of MySQL type "enum" or "set"
+     *
+     * @param string $table
+     * @param string $column
+     * @param string $columnType Optional, must be either enum (default) or set
+     * @return array
+     */
+    public function getEnumOptions($table, $column, $columnType = 'enum') {
+        $res = $this->query($this->getColumnTypeSql($table, $column));
+        $row = current($res->fetch_row());
+        return explode("','", str_replace(array($columnType . "('", "')"), '', $row));
+    }
+
+    /**
+     * Inserts a new row or updates the content of an existing one
+     *
+     * Takes the same parameters as the insertSql() method except that to operate optimally the column names
+     * must be defined either in cols or as the keys in the vals array (will still work without it though.)
+     *
+     * @param array $args
+     * @return string
+     */
+    public function insertOrUpdateSql(array $args) {
+        $sql = $this->insertSql($args);
+        if (!$this->_cols) { //cannot avoid locking MyISAM tables without column names defined
+            return 'replace' . substr($this->insertSql($args), 6);
+        }
+        foreach ($this->_cols as $col) {
+            $colSql[] = $col . '=values(' . $col . ')';
+        }
+        $sql .= ' on duplicate key update ' . implode(', ', $colSql);
+        return $sql;
+    }
+}

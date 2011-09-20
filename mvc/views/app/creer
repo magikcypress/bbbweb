@@ -1,0 +1,62 @@
+<?php
+     get::$title = 'Créer une salle de conférence';
+     echo $html->h1('Cr&eacute;er un salle de conférence');
+
+     include("menu");
+?>
+
+<div class="span-12">
+
+<?php
+//    $nb_salle = get::model('divers')->getSalleUser($_SESSION['id_utilisateur']);
+//    $nb_salle_max = get::model('consommation')->getMaxSalle($_SESSION['id_tarif']);
+    if(get::component('comptage')->droitCreationSalle() == true) {
+
+    if(isset($create_room)) 
+      echo '<div class="errormessageb">Erreur lors de l\'insertion d\'une salle</div>';
+    
+
+    echo $form->open(array('action' => '', 'method' => 'post', 'alert' => 'Les champs marqués d\'un astérisque sont obligatoires'));
+    // Test info
+    if (isset($_POST['room']) && empty($_POST['room'])) {
+        $_POST['errors']['room'] = 'Le nom de la salle n\'est pas insérée';
+    }
+    if (isset($_POST['name']) && empty($_POST['name'])) {
+        $_POST['errors']['name'] = 'Le nom du participant n\'est pas inséré';
+    }
+    if (isset($_POST['passap']) && empty($_POST['passap'])) {
+        $_POST['errors']['passap'] = 'Le mot de passe participant n\'est pas inséré';
+    }
+    if (isset($_POST['passmd']) && empty($_POST['passmd'])) {
+        $_POST['errors']['passmd'] = 'Le mot de passe modérateur n\'est pas inséré';
+    }
+    if (isset($_POST['email']) && empty($_POST['email'])) {
+        $_POST['errors']['email'] = 'Votre email n\'est pas inséré';
+    }
+
+    echo $form->input(array('type' => 'text', 'name' => 'room', 'value' => '', 'label' => 'Nom de la salle *'));
+    echo $form->input(array('type' => 'text', 'name' => 'name', 'value' => '', 'label' => 'Votre nom ou pseudo *'));
+    echo $form->input(array('type' => 'password', 'name' => 'passap', 'value' => '', 'label' => 'Mot de passe participant *'));
+    echo $form->input(array('type' => 'password', 'name' => 'passmd', 'value' => '', 'label' => 'Mot de passe modérateur *'));
+    echo $form->input(array('type' => 'text', 'name' => 'email', 'value' => '', 'label' => 'Adresse email *'));
+    echo $form->input(array('type' => 'submit','name' => 'submit', 'value' => 'Creer'));
+    echo $form->close();
+
+    $tools = get::helper('tools');
+    echo $tools->googleTranslateById('return_errors', 'fr');
+
+    } else {
+    echo '<div class="cadre-info"><p>Nombre de salle atteinte</a></p>
+                                    Vous pouvez <a href="/app/upgrade/' . $_SESSION['email']. '">upgrader votre compte</a> pour bénéficier de plus de salle.<br /></div>';
+    }
+?>
+
+</div>
+
+<span class="span-5">
+    <h4>Aide</h4>
+    <p>Créer des salles et ajouter des participants. Le tous en deux clics.</p>
+    <p>Lorsque vous cr&eacute;ez une salle, celle-ci est ouverte pendant <?php echo get::$config->BBB_DELAY; ?> minutes.</p>
+    <p>Vous pouvez cr&eacute;er une salle <?php echo $html->link('/app/planning/' . $_SESSION['email'], 'sur le planning'); ?>.</p>
+
+</span>

@@ -1,0 +1,79 @@
+<?php
+/**
+ * Functions required by the account controller.
+ */
+class profilModel extends model {
+    /**
+     * Table/collection name - only need to change this if you will be operating multiple Vork account instances
+     * on the same database
+     * @var string
+     */
+    protected $_table = 'utilisateur';
+
+    /**
+     * Database type to use
+     * @var string Either sql or mongo
+     */
+    protected $_db;
+
+    /**
+     * Mongo collection object cache
+     * @var MongoCollection
+     */
+    protected $_mongo;
+
+    /**
+     * Sets $this->_db and if it is Mongo then it sets the MongoDB collection
+     */
+    public function __construct() {
+        $this->_db = (!in_array('mongo', config::$modelObjects) ? 'sql' : 'mongo');
+    }
+
+    /**
+     * Switchboard to route to either SQL or Mongo methods
+     *
+     * @param string $name
+     * @param array $args
+     */
+    public function __call($name, array $args) {
+        $name = '_' . $this->_db . ucfirst($name);
+        if ($this->_db == 'mongo' && !$this->_mongo) {
+            $this->_mongo = $this->mongo->selectCollection($this->_table);
+        }
+        return call_user_func_array(array($this, $name), $args);
+    }
+
+    /**
+     * Get Profil
+     */
+    public function _sqlgetProfil($email) {
+        $sql = 'select id_utilisateur, nom, prenom, email, tel, raison_social, adresse, code_postal, ville, newsletters from ' . $this->_table . ' where email=?';
+        $res = $this->db->pquery($sql, $email);
+        return $res->fetch_assoc();
+    }
+    public function _mongogetProfil($email) {
+        $res = $this->_mongo->findOne(array('email' => $email));
+        return $res;
+    }
+
+     /**
+     * Update Profil
+     */
+    public function _sqlupdateProfil($id_utilisateur, array $args) {
+        $args = $this->db->cleanString($args);
+        foreach ($args as $key => $val) {
+            // Update session if email change
+            if($key == 'email')
+                  $_SESSION['email'] = trim(stripcslashes(str_replace("'", "", $val)));
+
+            $sqlCols[] = $key . '=' . $val;
+        }
+        $sql = 'update ' . $this->_table . ' set ' . implode(',', $sqlCols) . ' where id_utilisateur=' . $this->db->cleanString($id_utilisateur);
+        $this->db->query($sql);
+    }
+    public function _mongoupdateProfil($id_utilisateur, array $args = array()) {
+        $args['id_utilisateur'] = $id_utilisateur;
+        $this->_mongo->update(array('id_utilisateur' => $id_utilisateur), $args);
+    }
+
+}

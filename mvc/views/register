@@ -1,0 +1,101 @@
+<?php
+     get::$title = 'Enregistrement - Etape 1';
+     echo $html->h1('Enregistrer vous');
+?>
+    
+<div class="span-14">
+
+<?php
+if (!isset($profilAction)) {
+    //$profilAction = get::url(array('ssl' => false));
+    $passLen = (!empty($_POST['mot_passe']) ? strlen($_POST['mot_passe']) : '');
+
+   if (isset($_POST['submit']) && isset($_POST['tandc']) && !empty($_POST['tandc']) && !empty($_POST['email'])) {
+             // Verifier si l'email existe
+             if(!empty($_POST['email']) && get::model('login')->AccountExists($_POST['email'])) {
+                $_POST['errors']['email'] = 'Votre adresse email est déjà enregistrée';
+             } elseif(!empty($_POST['email']) && !get::component('email')->validateEmail($_POST['email'])) {
+                $_POST['errors']['email'] = 'Votre adresse email est incorrect';
+             } elseif (strlen($_POST['mot_passe']) < 4) {
+                $error['pass'] = 'Mot de passe trop court';
+             } else if (strlen($_POST['mot_passe']) > 16) {
+                $error['pass'] = 'Mot de passe trop long';
+             } elseif ($_POST['mot_passe'] != $_POST['mot_passe2']) {
+                    $_POST['errors']['mot_passe2'] = 'Attention la confirmation du mot de passe est incorrect !';
+             } else {
+                // Créer utilisateur
+                $cle = sha1('ActivationCompte' . $_POST['email'] . 'avec' . $_POST['mot_passe']);
+                $args = array('email' => $_POST['email'], 'mot_passe' => md5($_POST['mot_passe']), 'id_tarif' => 1, 'tandc' => $_POST['tandc'], 'cle' => $cle, 'date_insertion' => date('Y-m-d h:i:s'), 'validation' => 0);
+                $return['data'] = get::model('register')->Register($args);
+                // envoie mail de confirmation
+                $subject = 'Confirmation BBB';
+                $body = get::element('emails/register',
+                                          array('lien' => 'http://' . get::$config->SITE_DOMAIN . '/register2?k='.$cle,
+                                          'email' => 'support@' . get::$config->SITE_DOMAIN,
+                                          'site' => get::$config->SITE_DOMAIN));
+                $args = array('from' => 'no-reply@' . get::$config->SITE_DOMAIN ,
+                                  'fromName' => 'BBB api', 'body' => $body,
+                                  'to' => $_POST['email'], 'html' => true,
+                                  'subject' => '[' . get::$config->SITE_NAME . '] ' . $subject);
+
+                get::component('email')->sendEmail($args);
+                load::redirect('/s'); //removes POST values
+                return;
+            }
+   }
+}
+
+    // Test info
+    if (isset($_POST['email']) && empty($_POST['email'])) {
+        $_POST['errors']['email'] = 'Votre email n\'est pas insérée';
+    }
+    if (isset($_POST['mot_passe']) && empty($_POST['mot_passe2'])) {
+        $_POST['errors']['mot_passe'] = 'Vous devez insérer un mot de passe';
+    }
+    
+    echo $form->open(array('action' => '', 'method' => 'post', 'alert' => 'Les champs marqués d\'un astérisque sont obligatoires' ));
+    echo $form->input(array('type' => 'text', 'name' => 'email', 'value' => '', 'label' => 'Votre adresse email *'));
+    echo $form->input(array('type' => 'password', 'name' => 'mot_passe', 'value' => '', 'label' => 'Votre mot de passe *'));
+    echo $form->input(array('type' => 'password', 'name' => 'mot_passe2', 'value' => '', 'label' => 'Confirmer votre mot de passe *'));
+    
+    echo '<div class="tandc">';
+    echo '<input type="checkbox" name="tandc" id="tandc" value="1" /> J\'accepte les <a href="http://www.legeardweb.com/CGV">Conditions d\'utilisation</a>';
+    echo '</div>';
+
+    echo $form->input(array('type' => 'submit','name' => 'submit', 'value' => 'Suivant', 'class' => 'register', 'onclick' => 'register()'));
+    echo $form->close();
+?>
+
+</div>
+
+<span class="span-9">
+    <h4>Aide</h4>
+    Le Lorem Ipsum est simplement du faux texte employé dans la composition et la mise en page avant impression.
+    Le Lorem Ipsum est le faux texte standard de l'imprimerie depuis les années 1500, quand un peintre anonyme
+    assembla ensemble des morceaux de texte pour réaliser un livre spécimen de polices de texte.
+
+
+    <div class="demo">
+      <video width="100%" height="292px" controls="controls">
+        <source src="../../media/test4.mp4" type="video/mp4" />
+        <source src="../../media/test4.webm" type="video/webm" />
+        <source src="../../media/test4.ogv" type="video/ogg" />
+     <p>Vous n'avez pas de navigateur moderne, ni flash d'installé sur Internet Explorer... suivez les liens ci-dessous pour télécharger les vidéos.</p>
+      </video>
+    </div>
+
+</span>
+
+
+        <script type="text/javascript">
+        function register() {
+            if($('input[name=tandc]').is(':checked') == false) {
+                window.alert("Vous devez valider les conditions d'utilisation");
+            } else {
+                return true;
+            }
+        }
+
+        </script>
+
+

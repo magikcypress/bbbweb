@@ -1,0 +1,217 @@
+<?php
+/**
+ * Functions required by the account controller.
+ */
+class diversModel extends model {
+    /**
+     * Table/collection name - only need to change this if you will be operating multiple Vork account instances
+     * on the same database
+     * @var string
+     */
+    protected $_table_util = 'utilisateur';
+    protected $_table_compteur = 'compteur';
+    protected $_table_parametres = 'parametres';
+
+    /**
+     * Database type to use
+     * @var string Either sql or mongo
+     */
+    protected $_db;
+
+    /**
+     * Mongo collection object cache
+     * @var MongoCollection
+     */
+    protected $_mongo_util;
+    protected $_mongo_compteur;
+    protected $_mongo_parametres;
+
+    /**
+     * Sets $this->_db and if it is Mongo then it sets the MongoDB collection
+     */
+    public function __construct() {
+        $this->_db = (!in_array('mongo', config::$modelObjects) ? 'sql' : 'mongo');
+    }
+
+    /**
+     * Switchboard to route to either SQL or Mongo methods
+     *
+     * @param string $name
+     * @param array $args
+     */
+    public function __call($name, array $args) {
+        $name = '_' . $this->_db . ucfirst($name);
+        if ($this->_db == 'mongo' && !$this->_mongo_util && !$this->_mongo_compteur && !$this->_mongo_parametres) {
+            $this->_mongo_util = $this->mongo->selectCollection($this->_table_util);
+            $this->_mongo_compteur = $this->mongo->selectCollection($this->_table_compteur);
+            $this->_mongo_parametres = $this->mongo->selectCollection($this->_table_parametres);
+
+        }
+        return call_user_func_array(array($this, $name), $args);
+    }
+
+    /**
+     * Get Salle par user
+     */
+    public function _sqlgetSalleUser($id_utilisateur) {
+        $sql = 'select nb_salle from ' . $this->_table_compteur . ' where id_utilisateur=' . (int) $id_utilisateur;
+        $res = $this->db->query($sql);
+        return $res->fetch_assoc();
+    }
+    public function _mongogetSalleUser($id_utilisateur) {
+        $res = $this->_mongo_compteur->findOne(array('id_utilisateur' => $id_utilisateur));
+        return ($res ? $res['nb_salle'] : false);
+    }
+
+    /**
+     * Get Participant par user
+     */
+    public function _sqlgetParticipantUser($id_utilisateur) {
+        $sql = 'select nb_participant from ' . $this->_table_compteur . ' where id_utilisateur=' . (int) $id_utilisateur;
+        echo $sql;
+        $res = $this->db->query($sql);
+        return $res->fetch_assoc();
+    }
+    public function _mongogetParticipantUser($id_utilisateur) {
+        $res = $this->_mongo_compteur->findOne(array('id_utilisateur' => $id_utilisateur));
+        return ($res ? $res['nb_participant'] : false);
+    }
+
+    /**
+     * Add or update compteur Salle
+     */
+    public function _sqladdCompteurSalle(array $args) {
+        $args = $this->db->cleanString($args);
+        $nb_salle = get::model('divers')->countCompteur($_SESSION['id_utilisateur'], 'salle');
+        if(empty($nb_salle) || $nb_salle == 0) {
+            foreach ($args as $key => $val) {
+                $sqlKey[] = $key;
+                $sqlval[] = $val;
+            }
+            $sql = 'insert into ' . $this->_table_compteur . ' (' . implode(',', $sqlKey) . ') values(' . implode(',', $sqlval) . ')';
+            $this->db->query($sql);
+        } else {
+            $sql = 'update ' . $this->_table_compteur . ' set nb_salle = ' . $nb_salle['nb_salle'] . '+1 where id_utilisateur=' . $this->db->cleanString($_SESSION['id_utilisateur']);
+            $this->db->query($sql);
+        }
+    }
+    public function _mongoaddCompteurSalle(array $args = array()) {
+        $nb_salle = get::model('divers')->countCompteur($_SESSION['id_utilisateur'], 'salle');
+        if(empty($nb_salle) || $nb_salle == 0) {
+            $this->_mongo_compteur->insert($args);
+        } else {
+            $this->_mongo_compteur->save($args);
+        }
+    }
+
+    /**
+     * Delete compteur Salle
+     */
+    public function _sqldelCompteurSalle() {
+        $nb_salle = get::model('divers')->countCompteur($_SESSION['id_utilisateur'], 'salle');
+        $sql = 'update ' . $this->_table_compteur . ' set nb_salle = ' . $nb_salle['nb_salle'] . '-1 where id_utilisateur=' . $this->db->cleanString($_SESSION['id_utilisateur']);
+        $this->db->query($sql);
+    }
+    public function _mongodelCompteurSalle() {
+        $nb_salle = get::model('divers')->countCompteur($_SESSION['id_utilisateur'], 'salle');
+        $this->_mongo_compteur->delete($args);
+    }
+
+    /**
+     * Add or update compteur Participant
+     */
+    public function _sqladdCompteurParticipant(array $args) {
+        $args = $this->db->cleanString($args);
+        $nb_participant = get::model('divers')->countCompteur($_SESSION['id_utilisateur'], 'participant');
+        if(empty($nb_participant) || $nb_participant == 0) {
+            foreach ($args as $key => $val) {
+                $sqlKey[] = $key;
+                $sqlval[] = $val;
+            }
+            $sql = 'insert into ' . $this->_table_compteur . ' (' . implode(',', $sqlKey) . ') values(' . implode(',', $sqlval) . ')';
+            $this->db->query($sql);
+        } else {
+            $sql = 'update ' . $this->_table_compteur . ' set nb_participant = ' . $nb_participant['nb_participant'] . '+1 where id_utilisateur=' . $this->db->cleanString($_SESSION['id_utilisateur']);
+            $this->db->query($sql);
+        }
+    }
+    public function _mongoaddCompteurParticipant(array $args = array()) {
+        $nb_participant = get::model('divers')->countCompteur($_SESSION['id_utilisateur'], 'participant');
+        if(empty($nb_participant) || $nb_participant == 0) {
+            $this->_mongo_compteur->insert($args);
+        } else {
+            $this->_mongo_compteur->save($args);
+        }
+    }
+
+    /**
+     * Delete compteur Participant
+     */
+    public function _sqldelCompteurParticipant() {
+        $nb_participant = get::model('divers')->countCompteur($_SESSION['id_utilisateur'], 'participant');
+        $sql = 'update ' . $this->_table_compteur . ' set nb_participant = ' . $nb_participant['nb_participant'] . '-1 where id_utilisateur=' . $this->db->cleanString($_SESSION['id_utilisateur']);
+        $this->db->query($sql);
+    }
+    public function _mongodelCompteurParticipant() {
+        $nb_salle = get::model('divers')->countCompteur($_SESSION['id_utilisateur'], 'salle');
+        $this->_mongo_compteur->delete($args);
+    }
+
+    /**
+     * count compteur
+     */
+    public function _sqlcountCompteur($id_utilisateur, $choix = 'salle') {
+        $attribut = ($choix == 'salle') ? 'nb_salle' : 'nb_participant';
+        $sql = 'select ' . $attribut . ' from ' . $this->_table_compteur . ' where id_utilisateur=' . (int) $id_utilisateur;
+        $res = $this->db->query($sql);
+        return $res->fetch_assoc();
+    }
+    public function _mongocountCompteur($id_utilisateur) {
+        $res = $this->_mongo_compteur->findOne($id_utilisateur);
+        return;
+    }
+
+    /**
+     * Get Paramètres
+     */
+    public function _sqlgetPara() {
+        $sql = 'select id_parametres, urlbbb, clebbb, delai, codevip, numero_tel, urlbbbdefaut, bienvenue from ' . $this->_table_parametres;
+        $res = $this->db->query($sql);
+        while ($row = $res->fetch_assoc()) {
+            $parametres[$row['id_parametres']] = array('urlbbb' => $row['urlbbb'], 'clebbb' => $row['clebbb'], 'delai' => $row['delai'], 'codevip' => $row['codevip'], 'numero_tel' => $row['numero_tel'], 'bienvenue' => $row['bienvenue'], 'urlbbbdefaut' => $row['urlbbbdefaut']);
+        }
+        return $parametres;
+    }
+    public function _mongogetPara() {
+        $parametres = $this->_mongo_parametres->find();
+        return;
+    }
+
+    /**
+     * Get Paramètres SMTP
+     */
+    public function _sqlgetParaSmtp() {
+        try {
+            $sql = 'select id_parametres, host, port, auth, usersmtp, passsmtp from ' . $this->_table_parametres;
+            $res = $this->db->query($sql);
+            if(empty($res)) { 
+                throw new Exception("Erreur DB : " . $sql, 7);
+            } else {
+                while ($row = $res->fetch_assoc()) {
+                    $parametres[$row['id_parametres']] = array('host' => $row['host'], 'port' => $row['port'], 'auth' => $row['auth'], 'usersmtp' => $row['usersmtp'], 'passsmtp' => $row['passsmtp']);
+                }
+                return $parametres;
+            }
+        } catch (Exception $e) {
+            get::component('error')->log($e->getMessage());
+            $this->_sqlInit();
+        }
+    }
+    public function _mongogetParaSmtp() {
+        $parametres = $this->_mongo_parametres->find();
+        return;
+    }
+
+
+
+}

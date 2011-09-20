@@ -1,0 +1,677 @@
+<?php
+/**
+ * 3rd Party tools helper
+ */
+class toolsHelper {
+    /**
+     * Returns the URL of a Facebook profile
+     *
+     * @param int $id Facebook ID
+     * @return string
+     */
+    public function facebookProfileUrl($id) {
+        return 'http://www.facebook.com/profile.php?id=' . $id;
+    }
+
+    /**
+     * Returns the URL to a Facebook users photo
+     *
+     * @param int $id Facebook ID
+     * @param string $type Default: square (50px * 50px) Facebook Graph size identifiers; other valid options are
+     *                     small (50px wide, variable height) and large (about 200 pixels wide, variable height)
+     * @return string
+     */
+    public function facebookPhotoUrl($id, $type = 'square') {
+        return 'http://graph.facebook.com/' . $id . '/picture?type=' . $type;
+    }
+
+    /**
+     * Creates an embedded YouTube video
+     *
+     * @param mixed $args
+     * @return string
+     */
+    public function youtube($args) {
+        if (!is_array($args)) {
+            $args = array('id' => $args);
+        }
+        $id = str_replace('http://www.youtube.com/watch?v=', '', $args['id']);
+        $url = 'http://www.youtube.com/v/' . $id . '&amp;hl=en&amp;fs=1';
+        $defaultWidth = 425;
+        $defaultHeight = 344;
+        if (isset($args['format'])) {
+            $formats = array('normal' => 6, 'mobile' => 17, 'high' => 18, '720p' => 22, '1080p' => 37);
+            $format = (isset($formats[$args['format']]) ? $formats[$args['format']] : $args['format']);
+            $url .= '&amp;fmt=' . $format;
+            if ($format > 17) {
+                $defaultWidth = 854;
+                $defaultHeight = 505;
+                if ($format > 21) {
+                    $url .= '&amp;hd=' . (!isset($args['hd']) ? 1 : $args['hd']);
+                }
+            }
+        }
+        if (isset($args['url'])) {
+            $url .= '&amp;' . http_build_query($args['url'], '', '&amp;');
+        }
+        if (!isset($args['width'])) {
+            $args['width'] = $defaultWidth;
+        }
+        if (!isset($args['height'])) {
+            $args['height'] = $defaultHeight;
+        }
+        $args['params']['allowFullScreen'] =  'true';
+        $html = get::helper('html');
+        return $html->flash($url, $args);
+    }
+
+    /**
+     * Returns an AdSense ad
+     *
+     * Array args required: height, width
+     * Plus you need either: slot or channel
+     * And either 'client' or have the GOOGLE_AD_CLIENT constant set in your config
+     *
+     * @param array $args
+     * @return string
+     */
+    public function adSense(array $args) {
+        if (!isset($args['client'])) {
+            $args['client'] = get::$config->GOOGLE_AD_CLIENT;
+        }
+        foreach ($args as $key => $val) {
+            if ($val) {
+                if (!is_numeric($val)) {
+                    $val = '"' . $val . '"';
+                }
+                $jsArgs[] = 'google_ad_' . $key . ' = ' . $val . ';';
+            }
+        }
+        if (isset($jsArgs)) {
+            $adUrl = 'http://pagead2.googlesyndication.com/pagead/show_ads.js';
+            $html = get::helper('html');
+            $return = $html->jsInline(implode(PHP_EOL, $jsArgs)) . '<script type="text/javascript" src="' . $adUrl . '"></script>';
+            return $return;
+        }
+    }
+
+    /**
+     * Builds a link in the format used by the helper tools
+     *
+     * @param string $url
+     * @param string $data
+     * @param string $text
+     * @param array $args
+     * @return string
+     */
+    protected function _link($url, $data, $text = null, array $args = array()) {
+        if ($text == null) {
+            $text = $data;
+        }
+        $html = get::helper('html');
+        return $html->link($url, $text, $args);
+    }
+
+    /**
+     * Generate a link to Tweet on Twitter
+     *
+     * This has the same signature as $html->link() except that the 1st argument is your Tweet text instead of link URL.
+     *
+     * Returns a tweet-link. After calling this method the Twitter Tweet URL can be accessed via: $tools->twitterLink
+     *
+     * @param string $tweet
+     * @param string $text
+     * @param array $args
+     * @return string
+     */
+    public function twitterLink($tweet, $text = null, array $args = array()) {
+        $this->twitterLink = 'http://twitter.com/home?status=' . urlencode($tweet);
+        return $this->_link($this->twitterLink, $tweet, $text, $args);
+    }
+
+    /**
+     * Links to a location on Google Maps
+     *
+     * This has the same signature as $html->link() except that the first argument is your location instead of link URL.
+     *
+     * Map URL can be accessed after utilizing this method via: $tools->googleMapLink
+     *
+     * @param string $address
+     * @param string $text
+     * @param array $args
+     * @return string
+     */
+    public function googleMapLink($address, $text = null, array $args = array()) {
+        $this->googleMapLink = 'http://maps.google.com/maps?sa=N&tab=nl&q=' . urlencode($address);
+        return $this->_link($this->googleMapLink, $address, $text, $args);
+    }
+
+    /**
+     * Internal map counter
+     * @var int
+     */
+    protected $_mapCount = -1;
+
+    /**
+     * Escape text to be safely used as a JavaScript srting
+     *
+     * @param str $str
+     * @return str
+     */
+    protected function _jsString($str) {
+        return addslashes(str_replace(array(PHP_EOL, "\r", "\n"), ', ', $str));
+    }
+
+    /**
+     * Generate a Google map
+     *
+     * Args keys are:
+     * mapType Options are: HYBRID (default), ROADMAP, SATELLITE, TERRAIN
+     * height, width
+     * zoom
+     * marker - marker used for your position on the map, takes an array of marker arguments (defined below)
+     * markers - array of additional positions on the map, can be array(location1, location2, ...)
+     *  or array(location1 => array('icon' => 'iconurl', ...), location2 => array('shadow' => 'shadowurl', ...), ...)
+     * options (array sent to the Google Map as args)
+     * dontAjax - disable the AJAX load accelerator
+     *
+     * Marker arguments are defined by the Google API at
+     *  http://code.google.com/apis/maps/documentation/v3/reference.html#Marker plus an extra option of "info" to
+     *  populate the popup baloon that opens when a marker is clicked
+     *
+     * @param str $location
+     * @param array $args
+     * @return str
+     */
+    public function googleMap($location, array $args = array()) {
+        $html = get::helper('html');
+        $location = $this->_jsString($location);
+        $mapType = 'HYBRID';
+        $defaultDimension = $height = $width = '250px';
+        $zoom = 15;
+        extract($args);
+        if (!isset($options['zoom']) || !$options['zoom']) {
+            $options['zoom'] = (int) $zoom;
+        }
+        if (is_numeric($height)) {
+            $height .= 'px';
+        } else if ($height === null) {
+            $height = $defaultDimension;
+        }
+        if (is_numeric($width)) {
+            $width .= 'px';
+        } else if ($width === null) {
+            $width = $defaultDimension;
+        }
+        $return = $js = '';
+        if (!++$this->_mapCount) {
+            $jsUrl = (!isset($dontAjax) ? 'http://www.google.com/jsapi?autoload=%7Bmodules%3A%5B%7Bname%3A%22maps%22%2C'
+                                          . 'version%3A3%2Cother_params%3A%22sensor%3Dfalse%22%7D%5D%7D'
+                                        : 'http://maps.google.com/maps/api/js?sensor=false');
+            $return = $html->js($jsUrl);
+            $js .= 'var geocoder, lastInfoWindow, firstLocation = {};
+var codeAddress = function(map, address, thisMarkerArgs) {
+    if (!geocoder) {
+        return;
+    }
+    geocoder.geocode({"address": address}, function(results, status) {
+        if (status == google.maps.GeocoderStatus.OK) {
+            if (typeof firstLocation[map.getDiv().id] == "undefined") {
+                map.setCenter(results[0].geometry.location);
+                firstLocation[map.getDiv().id] = true;
+            }
+            var markerArgs = (typeof thisMarkerArgs == "undefined" ? {} : thisMarkerArgs);
+            markerArgs.map = map;
+            markerArgs.position = results[0].geometry.location;
+            var marker = new google.maps.Marker(markerArgs);
+            if (typeof thisMarkerArgs != "undefined" && typeof thisMarkerArgs.info != "undefined") {
+                var infowindow = new google.maps.InfoWindow({content: thisMarkerArgs.info});
+                google.maps.event.addListener(marker, "click", function() {
+                    if (typeof lastInfoWindow != "undefined") {
+                        lastInfoWindow.close();
+                    }
+                    infowindow.open(map, marker);
+                    lastInfoWindow = infowindow;
+                });
+            }
+        } else if (status == google.maps.GeocoderStatus.ZERO_RESULTS
+                   || status == google.maps.GeocoderStatus.INVALID_REQUEST) {
+            map.zoom = 1;
+            codeAddress(map, "USA");
+        } else {
+            map.getDiv().innerHTML = status;
+        }
+    });
+}' . PHP_EOL;
+        }
+        $js .= 'document.writeln("<div id=\"googlemap' . $this->_mapCount . '\"></div>");
+var googlemapDiv' . $this->_mapCount . ' = document.getElementById("googlemap' . $this->_mapCount . '");
+googlemapDiv' . $this->_mapCount . '.style.height = "' . $height . '";
+googlemapDiv' . $this->_mapCount . '.style.width = "' . $width . '";
+var googlemapObj' . $this->_mapCount . ';
+var googlemap' . $this->_mapCount . ' = function() {
+    geocoder = new google.maps.Geocoder();
+    var args = ' . json_encode($options) . ';
+    args.mapTypeId = google.maps.MapTypeId.' . $mapType . ';
+    googlemapObj' . $this->_mapCount . ' = new google.maps.Map(googlemapDiv' . $this->_mapCount . ', args);
+    codeAddress(googlemapObj' . $this->_mapCount . ', "' . $location . '"';
+            if (isset($marker)) {
+                $js .= ', ' . json_encode($marker);
+            }
+            $js .= ');' . PHP_EOL;
+         if (isset($markers)) {
+             foreach ($markers as $address => $thisMarker) {
+                if (!is_array($thisMarker)) {
+                    $address = $thisMarker;
+                }
+                $js .= 'codeAddress(googlemapObj' . $this->_mapCount . ', "' . $this->_jsString($address) . '"';
+                if (is_array($thisMarker)) {
+                    $js .= ', ' . json_encode($thisMarker);
+                }
+                $js .= ');' . PHP_EOL;
+            }
+        }
+        $js .= '}' . PHP_EOL;
+        if (!isset($dontAjax)) {
+            $js .= 'google.setOnLoadCallback(googlemap' . $this->_mapCount . ');';
+        } else {
+            $js .= 'window.onload=function() {';
+            for ($x = 0; $x <= $this->_mapCount; $x++) {
+                $js .= 'googlemap' . $x . '();';
+            }
+            $js .= '};';
+        }
+        $return .= $html->jsInline($js);
+        return $return;
+    }
+
+    /**
+     * Generates a link to Google Translate. Languages supported:
+     *
+     * af - Afrikaans, sq - Albanian, ar - Arabic, be - Belarusian, bg - Bulgarian, ca - Catalan,
+     * zh-CN - Chinese (Simplified), zh-TW - Chinese (Traditional), hr - Croatian, cs - Czech, da - Danish,
+     * nl - Dutch, en - English, et - Estonian, tl - Filipino, fi - Finnish, fr - French, gl - Galician,
+     * de - German, el - Greek, iw - Hebrew, hi - Hindi, hu - Hungarian, is - Icelandic, id - Indonesian,
+     * ga - Irish, it - Italian, ja - Japanese, ko - Korean, lv - Latvian, lt - Lithuanian, mk - Macedonian,
+     * ms - Malay, mt - Maltese, no - Norwegian, fa - Persian, pl - Polish, pt - Portuguese, ro - Romanian,
+     * ru - Russian, sr - Serbian, sk - Slovak, sl - Slovenian, es - Spanish, sw - Swahili, sv - Swedish,
+     * th - Thai, tr - Turkish, uk - Ukrainian, vi - Vietnamese, cy - Welsh, yi - Yiddish
+     *
+     * @param str $to Language code to translate to
+     * @param str $url Optional, current page will be used if omitted
+     * @param str $from Optional Original language code of the page getting translated, omit for automatic selection
+     * @param str $headerLanguage Optional, language of the Google Header, if Google does not support the
+     *                                      header language then it will use English in the header instead
+     * @return str
+     */
+    public function googleTranslateUrl($to, $url = null, $from = null, $headerLanguage = null) {
+        if (!$url) {
+            $url = 'http://' . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'];
+        }
+        $url = 'http://translate.google.com/translate?ie=UTF-8&u=' . urlencode($url) . '&tl=' . $to;
+        if ($from) {
+            $url .= '&sl=' . $from;
+        }
+        if ($headerLanguage) {
+            $url .= '&hl=' . $headerLanguage;
+        }
+        return $url;
+    }
+
+    /**
+     * Flag if vork.translateById() JavaScript function has been returned
+     * @var Boolean
+     */
+    protected $_googleLanguageLoaded = false;
+
+    /**
+     * Translate the innerHTML of an HTML container or the value of a form text input by its ID
+     *
+     * If all arguments are omitted then this method will only initialize the translate engine, you will need
+     * to call the translation function from the page via JavaScript: vork.translateById('id', 'to', 'from')
+     *
+     * @param str $to Language code (eg. es, ru, etc.)
+     * @param str $id ID of an HTML container or form text element
+     * @param str $from Optional language code, if omitted this will auto-detect
+     * @return str
+     */
+    public function googleTranslateById($id = null, $to = null, $from = '') {
+        $html = get::helper('html');
+        $js = ($id == null ? '' : 'google.setOnLoadCallback(function() {vork.translateById("'
+                                                                        . $id .'", "' . $to .'", "' . $from .'")});');
+        if (!$this->_googleLanguageLoaded) {
+            $rtl = array('he', 'yi', 'ar', 'fa');
+            $js = $html->jsTools(true)
+                . 'vork.translateLastLang = {}' . PHP_EOL
+                . 'vork.rtl = {"' . implode('":1, "', $rtl) . '":1}' . PHP_EOL
+                . 'vork.translateById = function(id, to, from) {' . PHP_EOL
+                . '    if (typeof from == "undefined") {' . PHP_EOL
+                . '        from = (typeof vork.translateLastLang[id] == "undefined" || vork.translateLastLang[id] == to
+                                   ? "en" : vork.translateLastLang[id]);' . PHP_EOL
+                . '    }' . PHP_EOL
+                . '    vork.translateLastLang[id] = to;' . PHP_EOL
+                . '    var domid = dom(id);' . PHP_EOL
+                . '    var textcontent = (domid.type == "textarea" || domid.type == "input"'
+                                      . ' ? domid.value.replace(/\n/g, "<br />") : domid.innerHTML);' . PHP_EOL
+                . '    google.language.translate(textcontent, from, to, function(result) {' . PHP_EOL
+                . '        if (result.translation) {' . PHP_EOL
+                . '            if (domid.type == "textarea" || domid.type == "input" || domid.type == "label") {' . PHP_EOL
+                . '                domid.value = result.translation.replace(/<br \/>/g, "\n");' . PHP_EOL
+                . '            } else {' . PHP_EOL
+                . '                domid.innerHTML = result.translation;' . PHP_EOL
+                . '            }' . PHP_EOL
+                . '            domid.style.direction = (typeof vork.rtl[to] == "undefined" ? "ltr" : "rtl");' . PHP_EOL
+                . '        }' . PHP_EOL
+                . '    });' . PHP_EOL
+                . '}' . PHP_EOL . $js;
+            $this->_googleLanguageLoaded = true;
+            $return[] = $html->jsLoad('language');
+        }
+        $return[] = $html->jsInline($js);
+        return implode($return);
+    }
+
+    /**
+     * Builds a chart using Google Chart
+     * Documentation at: http://code.google.com/apis/chart/
+     *
+     * @param array $args
+     * @param array $imgArgs Passed to the $html->img() method directly
+     * @return str
+     */
+    public function chart(array $args, array $imgArgs = array()) {
+        $imgArgs['src'] = 'http://chart.apis.google.com/chart?' . urldecode(http_build_query($args));
+        $html = get::helper('html');
+        return $html->img($imgArgs);
+    }
+
+    /**
+     * Generates a QR code (the modern version of a UPC code) using Google Chart
+     *
+     * @param str $str
+     * @param array $args Optional, keys for size (in px), margin (in px), ecLevel (valid options are L, M, Q, H)
+     * @return str
+     */
+    public function qrCode($str, array $args = array()) {
+        //default is 2x size (plus margin) of typical QR version for the error correction level (L=V.2, M/Q=V.3, H=V.4)
+        $ecCodes = array('L' => 58, 'M' => 66, 'Q' => 66, 'H' => 74);
+        if (isset($args['ecLevel'])) {
+            $args['ecLevel'] = strtoupper($args['ecLevel']);
+        }
+        $ecLevel = (isset($args['ecLevel']) && isset($ecCodes[$args['ecLevel']]) ? $args['ecLevel'] : 'L');
+        $size = (isset($args['size']) ? (int) $args['size'] : $ecCodes[$ecLevel]);
+        $margin = (isset($args['margin']) ? (int) $args['margin'] : 2); //half-the-minimum margin, since 2x the size
+        $chartArgs = array('cht' => 'qr', 'choe' => 'UTF-8', 'chs' => $size . 'x' . $size, 'chl' => urlencode($str),
+                           'chld' => $ecLevel . '|' . $margin);
+        return $this->chart($chartArgs);
+    }
+
+    /**
+     * Creates an AddThis widget (requires setting your AddThis publisher code in the config or passing 'id' argument)
+     *
+     * @param array $args Optional. Can be any parameters defined in the AddThis API plus 'id'
+     * @return string
+     */
+    public function addThis(array $args = array()) {
+        $url = (isset($args['url']) ? $args['url'] : '[URL]');
+        $title = (isset($args['title']) ? $args['title'] : '[TITLE]');
+        $html = get::helper('html');
+        $id = (!isset($args['id']) ? get::$config->ADD_THIS : $args['id']);
+        $return = '<a href="http://www.addthis.com/bookmark.php?v=250&amp;pub=' . $id
+                . '" onmouseover="return addthis_open(this, \'\', \'' . $url . '\', \'' . $title
+                . '\')" onmouseout="addthis_close()" onclick="return addthis_sendto()">'
+                . $html->img(array('src' => 'http://s7.addthis.com/static/btn/lg-share-en.gif',
+                                   'width' => 125, 'height' => 16, 'alt' => 'Bookmark and Share'))
+                . '</a>' . $html->js('http://s7.addthis.com/js/250/addthis_widget.js?pub=' . $id);
+        if ($args) {
+            foreach ($args as $key => $val) {
+                if (!is_array($val)) {
+                    $val = "'" . $val . "'";
+                } else {
+                    foreach ($val as $k => $v) {
+                        $valObj[] = $k . ': "' . $v . '"';
+                    }
+                    $val = '{' . implode(', ', $valObj) . '}';
+                }
+                $jsArgs[] = 'var ' . $key . '=' . $val . ';';
+            }
+            $return = $html->jsInline(implode(PHP_EOL, $jsArgs)) . $return;
+        }
+        return $return;
+    }
+
+    /**
+     * Creates a ShareThis widget (requires setting your ShareThis publisher code in the config or id argument)
+     *
+     * @param array $services Optional, a default set of services will be used if ommitted. Special "id" key is
+     *                        required if ShareThis publisher code is not set in the config
+     * @return string
+     */
+    public function shareThis(array $services = null) {
+        if (isset($services['id'])) {
+            $id = $services['id'];
+            unset($services['id']);
+        } else {
+            $id = get::$config->SHARE_THIS;
+        }
+        if (!$services) {
+            $services = array('twitter', 'linkedin', 'facebook', 'digg', 'ybuzz', 'stumbleupon', 'delicious',
+                              'technorati', 'google_bmarks', 'myspace', 'windows_live', 'slashdot', 'blogger',
+                              'wordpress', 'typepad', 'reddit', 'newsvine', 'mixx', 'fark', 'bus_exchange',
+                              'propeller', 'livejournal', 'friendfeed', 'yahoo_bmarks');
+        }
+        $html = get::helper('html');
+        return $html->js('http://w.sharethis.com/button/sharethis.js#publisher=' . $id
+                       . '&amp;type=website&amp;style=rotate&amp;post_services=' . implode('%2C', $services));
+    }
+
+    /**
+     * Generate an array of tag links
+     *
+     * @param array $tags Array key is the tag, value is the tag weight
+     * @param array $args Optional, keys are: baseUrl, (bool) standardDeviation
+     * @return array
+     */
+    public function tagCloudTags(array $tags, array $args = array()) {
+        $baseUrl = (isset($args['baseUrl']) ? $args['baseUrl'] : '');
+        $tagsCopy = $tags;
+        asort($tagsCopy, SORT_NUMERIC);
+        $tagCount = count($tags);
+        $standardDeviation = (!isset($args['standardDeviation']) ? ($tagCount > 5) : (bool) $args['standardDeviation']);
+        if ($standardDeviation) { //apply standard deviation
+            array_pop($tagsCopy);
+            array_shift($tagsCopy);
+            $min = current($tagsCopy);
+            $avg = (array_sum($tagsCopy) / ($tagCount - 2));
+            $increment = (($avg - $min) / 4);
+        } else { //simple arithmetic
+            $min = current($tagsCopy);
+            $max = end($tagsCopy);
+            $increment = (($max - $min) / 9);
+        }
+        $increment = max($increment, 0.000001); //avoid division-by-zero issues
+        $html = get::helper('html');
+        foreach ($tags as $tag => $val) {
+            $return[] = $html->link($baseUrl . $tag, $tag, array('class' => 'cloud' . max(min(floor($val / $increment), 9), 0)));
+        }
+        return $return;
+    }
+
+    /**
+     * Gets a tag cloud
+     *
+     * @param array $tags Array key is the tag, value is the tag weight
+     * @param array $args Optional, keys are: (bool) noCss, multiplier, baseUrl, (bool) standardDeviation
+     * @return str
+     */
+    public function tagCloud(array $tags, array $args = array()) {
+        $html = get::helper('html');
+        if (!isset($args['noCss']) || !$args['noCss']) {
+            $multiplier = (!isset($args['multiplier']) ? 2 : $args['multiplier']);
+            $cssRange = range(0, 9);
+            $increment = 2;
+            foreach ($cssRange as $level) {
+                $css[] = '.cloud' . $level . ' {font-size: ' . ((++$increment + $level) * $multiplier) . '0%;}';
+            }
+            $return[] = $html->cssInlineSingleton(implode(' ', $css));
+        }
+        $tags = $this->tagCloudTags($tags, $args);
+        $return[] = '<div class="tagcloud">' . implode(' ', $tags) . '</div>';
+        return implode($return);
+    }
+
+    /**
+     * Generates a 3D ball of your Flick feed (will only display for users with Flash installed)
+     * Uses Photo widget from www.roytanck.com modified to parse Flickr XML feeds
+     *
+     * @param str $feedId
+     * @param str $args
+     */
+    public function flickrBall($feedId, array $args = array()) {
+        $html = get::helper('html');
+        $flickrApi = 'feed=http%3A//api.flickr.com/services/feeds/photos_public.gne'
+                   . '%3Flang%3Den-us%26format%3Drss_200%26id%3D' . $feedId;
+        if (substr($feedId, -4, 2) != '@N') {
+            $flickrApi .= '@N00';
+        }
+        $bgcolor = (isset($args['bgcolor']) ? $args['bgcolor'] : '#ffffff');
+        $params = array('AllowScriptAccess' => 'always', 'flashvars' => $flickrApi, 'bgcolor' => $bgcolor);
+        $object = array('width' => (isset($args['width']) ? $args['width'] : 200),
+                        'height' => (isset($args['height']) ? $args['height'] : 200));
+        $args['params'] = (!isset($args['params']) ? $params : array_merge($params, $args['params']));
+        $args['object'] = (!isset($args['object']) ? $object : array_merge($object, $args['object']));
+        return $html->flash('/assets/flickrball.swf', $args);
+    }
+
+    /**
+     * Embed an MP3 player
+     * Valid $args keys: bgcolor, bgcolor2 (for gradient effect), height, width,
+     *                   (Booleans:) autoplay, loop, hidePlaylist
+     *                   FlashVars (direct entry to the FlashVars property, full features at
+     *                              http://flash-mp3-player.net/players/multi/generator/)
+     *
+     * @param mixed $mp3files Can be a string or an array of strings or key=>val pairs (mp3file => title)
+     * @param array $args
+     * @return str
+     */
+    public function mp3Player($mp3files, array $args = array()) {
+        $html = get::helper('html');
+        if (!is_array($mp3files)) {
+            $mp3files = array($mp3files);
+        }
+        if (isset($mp3files[0])) {
+            foreach ($mp3files as $key => $file) {
+                if (!$file) {
+                    unset($mp3files[$key]);
+                }
+            }
+            $vars[] = 'mp3=' . urlencode(str_replace('\\', '/', implode('|', $mp3files)));
+        } else {
+            foreach ($mp3files as &$title) {
+                $title = str_replace('|', '', $title);
+            }
+            $vars[] = 'title=' . urlencode(implode('|', $mp3files));
+            $vars[] = 'mp3=' . urlencode(str_replace('\\', '/', implode('|', array_keys($mp3files))));
+        }
+        $height = (count($mp3files) === 1 || (isset($args['hidePlaylist']) && $args['hidePlaylist']) ? 20 : 100);
+        if ($height == 20) {
+            $vars[] = 'showlist=0';
+        }
+        $args['object']['height'] = (!isset($args['height']) ? $height : (int) $args['height']);
+        $args['object']['width'] = (!isset($args['width']) ? 250 : (int) $args['width']);
+        $vars[] = 'width=' . $args['object']['width'];
+        $vars[] = 'height=' . $args['object']['height'];
+        if (isset($args['bgcolor'])) {
+            $args['bgcolor'] = str_replace('#', '', $args['bgcolor']);
+            $vars[] = 'bgcolor1=' . $args['bgcolor'];
+            $vars[] = 'bgcolor2=' . (isset($args['bgcolor2']) ? str_replace('#', '', $args['bgcolor2'])
+                                                              : $args['bgcolor']);
+        }
+        $vars[] = 'autoplay=' . (!isset($args['autoplay']) ? 0 : (int) (bool) $args['autoplay']);
+        $vars[] = 'loop=' . (!isset($args['loop']) ? 1 : (int) (bool) $args['loop']);
+        $vars[] = 'showvolume=1';
+        $vars[] = 'showinfo=' . (!isset($args['showinfo']) ? 1 : (int) (bool) $args['showinfo']);
+        if (isset($args['FlashVars'])) {
+            $vars[] = $args['FlashVars'];
+        }
+        $args['params']['FlashVars'] = implode('&amp;', $vars);
+        return $html->flash('/assets/mp3player.swf', $args);
+    }
+
+    /**
+     * Builds the URL to access the Meetup API
+     *
+     * @param string $service Must be a valid Meetup service as defined in their API (eg. groups, events, members, etc.
+     * @param array $args
+     * @return string
+     */
+    protected function _getMeetupUrl($service, array $args) {
+        if (!isset($args['key'])) {
+            $args['key'] = get::$config->MEETUP_API_KEY;
+        }
+        return 'http://api.meetup.com/' . $service . '.json/?' . http_build_query($args);
+    }
+
+    /**
+     * Contains the last raw JSON string retrieved from the Meetup API
+     * @var string JSON
+     */
+    public $meetup;
+
+    /**
+     * Queries the Meetup API and returns the results in an array and saves the raw JSON data in $tools->meetup
+     *
+     * @param string $service
+     * @param array $args
+     * @return array
+     */
+    public function meetup($service, array $args) {
+        $this->meetup = file_get_contents($this->_getMeetupUrl($service, $args));
+        return json_decode(utf8_encode($this->meetup), true);
+    }
+
+    /**
+     * Generates an array of html-valid ASCII codes for easy generation of HTML ascii or displaying an ASCII table
+     *
+     * @param int $min Starting ASCII number
+     * @param int $max Ending ASCII number
+     * @return string
+     */
+    public function ascii($min = 0, $max = 10000) {
+        $range = range($min, $max);
+        return array_combine($range,
+                  array_map(create_function('$val', 'return "&#" . str_pad($val, 4, 0, STR_PAD_LEFT) . ";";'), $range));
+    }
+
+    /**
+     * Returns the IP address of the user; automatically bypasses local-IPs of load-balancers
+     * @return string
+     */
+    public function ip() {
+        if (isset($_SERVER['HTTP_X_FORWARDED_FOR']) && $_SERVER['HTTP_X_FORWARDED_FOR']) {
+            $ips = explode(' ', $_SERVER['HTTP_X_FORWARDED_FOR']);
+            $ip = array_pop($ips);
+        } else if (isset($_SERVER['REMOTE_ADDR'])) {
+            $ip = $_SERVER['REMOTE_ADDR'];
+        }
+        return (isset($ip) ? $ip : null);
+    }
+
+    /**
+     * Keeps legacy naming convention working. New applications can safely remove this method.
+     *
+     * @param string $name
+     * @param array $args
+     * @return mixed
+     * @deprecated This keeps deprecated method names working but usage should be phased out.
+     */
+    public function __call($name, array $args) {
+        if (substr($name, 0, 3) == 'get') {
+            $newName = strtolower($name[3]) . substr($name, 4);
+            if (method_exists($this, $newName)) {
+                return call_user_func_array(array($this, $newName), $args);
+            }
+        }
+        trigger_error('Call to undefined method ' . __CLASS__ . '::' . $name . '()', E_USER_ERROR);
+    }
+}

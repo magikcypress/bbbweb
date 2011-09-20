@@ -1,0 +1,2 @@
+<?php
+ get::component('paypal')->goToPay();

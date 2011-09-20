@@ -1,0 +1,62 @@
+<?php
+/**
+ * RSS/Atom feed reader
+ */
+class rssComponent {
+    /**
+     * A more forgiving extension of PHP's strtotime()
+     *
+     * @param str $date
+     * @return int
+     */
+    protected function _strtotime($date) {
+        $timestamp = strtotime($date);
+        if ($timestamp == -1) {
+            $date = str_replace('T', ' ', substr($date, 0, (strlen($date)-6)));
+            $lastDot = strrpos($date, '.');
+            if ($lastDot) {
+                $date = substr($date, 0, $lastDot);
+            }
+            $timestamp = strtotime($date);
+        }
+        return $timestamp;
+    }
+
+    /**
+     * Reads an RSS or Atom feed and returns the contents in a PHP array consisting of title, description, link and
+     * date (if included.)
+     *
+     * @param str $url
+     * @return array
+     */
+    public function getFeed($url) {
+        $xml = simplexml_load_string(file_get_contents($url));
+        if (isset($xml->channel)) {
+            $items = $xml->channel->item;
+            $feedtype = 'rss2.0';
+        } else {
+            $items = $xml->entry;
+            $feedtype = 'atom';
+        }
+        foreach($items as $item) {
+            $title = $item->title;
+            if ($feedtype == 'rss2.0') {
+                $link = (isset($item->link) ? $item->link : $item->guid);
+                $description = (isset($item->description) ? $item->description
+                                                           : current($item->xpath('content:encoded')));
+                $date = (isset($item->pubDate) ? $item->pubDate : current($item->xpath('dc:date')));
+            } else {
+                $link = $item->link['href'];
+                $description = (isset($item->content) ? $item->content : $item->summary);
+                $date = (isset($item->updated) ? $item->updated : $item->created);
+            }
+            $return = array('title' => trim($title), 'link' => trim($link), 'description' => trim($description));
+            if ($date) {
+                $timestamp = $this->_strtotime($date);
+                $return['date'] = date('Y-m-d H:i:s', $timestamp);
+            }
+            $data[] = $return;
+        }
+        return (isset($data) ? $data : array());
+    }
+}

@@ -1,0 +1,71 @@
+<?php
+/**
+ * Converts the procedural IBM DB2 PHP class to object-oriented
+ */
+class db2 {
+    /**
+     * Database resource ID
+     * @var object
+     */
+    public $resource;
+
+    /**
+     * The database method used to sanitize user input strings
+     */
+    const ESCAPE_STRING = 'escape_string';
+
+    /**
+     * Connect to IBM DB2
+     *
+     * @param string $username
+     * @param string $passwd
+     * @param string $dbname Optional
+     * @param array $options Optional
+     */
+    public function __construct($username, $password, $dbname, $options = null) {
+        try {
+            $this->resource = db2_connect($dbname, $username, $password, $options);
+            if (!$this->resource) {
+                throw new Exception('Cannot connect to DB2');
+            }
+        } catch (Exception $e) {
+            $this->error = $e->getMessage();
+        }
+    }
+
+    /**
+     * Alias for db2_exec() to update DB2 to use the modern naming convention
+     * and not require passing the connection to every statement via argument
+     *
+     * @param string $query
+     * @return resource
+     */
+    public function query($query) {
+        return db2_exec($this->resource, $query);
+    }
+
+    /**
+     * Catch-all method allowing you to call any DB2 function via camel-cap object-oriented syntax.
+     *
+     * From your models you could access:
+     *
+     * $this->db->fetchAssoc()
+     * $this->db->fetchBoth()
+     * $this->db->commit()
+     * $this->db->prepare()
+     * $this->db->primaryKeys()
+     * $this->db->result()
+     * $this->db->rollback()
+     * $this->db->close()
+     * etc.
+     *
+     * @param string $name
+     * @param mixed $val
+     */
+    public function __call($name, $val) {
+        $name = strtolower('db2_' . preg_replace('/[A-Z]/', '_$0', $name));
+        if (function_exists($name)) {
+            return call_user_func_array($name, $val);
+        }
+    }
+}

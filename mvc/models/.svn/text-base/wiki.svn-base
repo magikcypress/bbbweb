@@ -1,0 +1,195 @@
+<?php
+/**
+ * Manages Wiki data
+ */
+class wikiModel extends model {
+    /**
+     * Maximum number of search results to return
+     *
+     * @var int
+     */
+    public $searchLimit = 30;
+
+    /**
+     * Maximum length of search result descriptions
+     *
+     * @var int
+     */
+    public $maxSearchResultDescriptionLength = 200;
+
+    /**
+     * Establish the base location of the wiki
+     *
+     * @return string
+     */
+    protected function _getController() {
+        $return = mvc::$controller;
+        if (mvc::$action != 'index') {
+            $return .= '/' . mvc::$action;
+        }
+        return $return;
+    }
+
+    /**
+     * Retrieve the page data
+     *
+     * @param int $version Optional - if ommitted then most recent version will be used
+     * @return array
+     */
+    public function select($version = null) {
+        $sqlWhere = ' where controller=' . $this->db->cleanString($this->_getController())
+                  . ' and wikiaction=' . $this->db->cleanString(mvc::$params[0]);
+        $sql = 'select title, body, keywords, description'
+             . (!$version ? ' from wikicache' : ', comments from wikilog') . $sqlWhere;
+        if ($version) {
+            $sql .= ' and version=' . $this->db->cleanString($version);
+        }
+        $res = $this->db->query($sql);
+        if (!$res) {
+            $this->initializeDb();
+            $res = $this->db->query($sql);
+        }
+        $row = $res->fetch_assoc();
+        if ($row) {
+            $return = array('title' => $row['title'], 'body' => $row['body']);
+            $return['head']['meta']['keywords'] = $row['keywords'];
+            $return['head']['meta']['description'] = $row['description'];
+            if ($version) {
+                $return['comments'] = $row['comments'];
+            }
+        } else {
+            $return = array('title' => '', 'body' => '', 'returncode' => 404);
+            $sql = 'select version from wikilog ' . $sqlWhere . ' limit 1';
+            $res = $this->db->query($sql);
+            $return['hasHistory'] = $res->fetch_assoc();
+        }
+        return $return;
+    }
+
+    /**
+     * Searches the wiki documents
+     *
+     * @param string $keyword
+     * @return array
+     */
+    public function search($keyword) {
+        $controller = $this->_getController();
+        $keyword = "'%" . $this->db->{db::ESCAPE_STRING}($keyword) . "%'";
+        $dbParents = class_parents($this->db);
+        $isMysql = (isset($dbParents['mysqli']) || isset($dbParents['mysql']));
+        //$this->maxSearchResultDescriptionLength + 150 accounts for up to 150 chars of inline HTML
+        $description = (!$isMysql ? 'description' : "if(description != '', description, substring(body, 1, "
+                                                    . ($this->maxSearchResultDescriptionLength + 150)
+                                                    . ")) as description");
+        $sql = 'select wikiaction, title, ' . $description . ' from wikicache where (body like ' . $keyword
+             . ' or keywords like ' . $keyword . ' or description like ' . $keyword
+             . ') and controller=' . $this->db->cleanString($controller);
+        if ($isMysql) {
+            $sql .= ' limit ' . $this->searchLimit;
+        } else if (isset($dbParents['oci8'])) {
+            $sql .= ' and rownum<=' . $this->searchLimit;
+        } else if (isset($dbParents['mssql'])) {
+            $sql = 'select top ' . $this->searchLimit . substr($sql, 6);
+        }
+        $res = $this->db->query($sql);
+        while ($row = $res->fetch_assoc()) {
+            $row['description'] = str_replace(array("\r\n", "\n", "\r", '  '), ' ', strip_tags($row['description']));
+            if (strlen($row['description']) > $this->maxSearchResultDescriptionLength) {
+                $row['description'] = substr($row['description'], 0, $this->maxSearchResultDescriptionLength);
+                $lastSpace = strrpos($row['description'], ' ');
+                if ($lastSpace) {
+                    $row['description'] = substr($row['description'], 0, $lastSpace);
+                }
+                $row['description'] .= '...';
+            }
+            $return['/' . $controller . '/' . $row['wikiaction']] = $row;
+        }
+        return (isset($return) ? $return : array());
+    }
+
+    /**
+     * Update the wiki page data
+     *
+     * Uses MySQL/SQLite-specific replace-into syntax, other databases will need to adjust syntax
+     *
+     * @param array $data
+     */
+    public function update(array $data) {
+        $controller = $this->db->cleanString($this->_getController());
+        $wikiaction = $this->db->cleanString(mvc::$params[0]);
+        $args = array('table' => 'wikilog',
+                      'vals' => array_merge($this->db->cleanString($data), array('controller' => $controller,
+                                                                                 'wikiaction' => $wikiaction,
+                                                                                 'version' => 'current_timestamp')));
+        $sql = $this->db->insertSql($args);
+        $this->db->query($sql);
+
+        $cols = 'controller, wikiaction, title, body, keywords, description';
+        $sql = 'replace into wikicache (' . $cols . ') select ' . $cols . ' from wikilog where controller='
+             . $controller . ' and wikiaction=' . $wikiaction . ' order by version desc limit 1';
+        $this->db->query($sql);
+    }
+
+    /**
+     * Revert the wiki to a different version
+     *
+     * @param string $version database date/time
+     */
+    public function revertToVersion($version) {
+        $data = $this->select($this->_getController(), mvc::$params[0], $version);
+        if ($data) {
+            $data['comments'] = 'Reverted to version: ' . $version;
+            $this->update($data);
+        }
+    }
+
+    /**
+     * Delete the wiki page
+     */
+    public function delete() {
+        $sql = 'delete from wikicache where controller=' . $this->db->cleanString($this->_getController())
+             . ' and wikiaction=' . $this->db->cleanString(mvc::$params[0]);
+        $this->db->query($sql);
+    }
+
+    /**
+     * Retrieve the list of changes made to a wiki page
+     *
+     * @return array
+     */
+    public function getHistory() {
+        $sql = 'select version, comments from wikilog where controller='
+             . $this->db->cleanString($this->_getController())
+             . ' and wikiaction=' . $this->db->cleanString(mvc::$params[0])
+             . ' order by version desc';
+        $res = $this->db->query($sql);
+        while ($row = $res->fetch_assoc()) {
+            $return[$row['version']] = $row['comments'];
+        }
+        return (isset($return) ? $return : array());
+    }
+
+    /**
+     * builds database tables automatically upon first usage
+     *
+     * If your database does not support the datetime and text column types then you will need to adjust this method.
+     * Oracle users may also swap varchar with varchar2
+     */
+    public function initializeDb() {
+        $cols = 'controller varchar(100) not null,
+        wikiaction varchar(50) not null,
+        title varchar(255) not null,
+        body text not null,
+        keywords varchar(255) not null,
+        description varchar(255) not null,';
+
+        $sql = 'create table wikicache (' . $cols . ' primary key(controller, wikiaction))';
+        $this->db->query($sql);
+
+        $sql = 'create table wikilog (' . $cols . '
+        version datetime not null,
+        comments varchar(255) null,
+        primary key(controller, wikiaction, version))';
+        $this->db->query($sql);
+    }
+}

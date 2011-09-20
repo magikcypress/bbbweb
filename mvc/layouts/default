@@ -1,0 +1,107 @@
+<?php
+
+// Deconnection si session expire
+//if($_SERVER['REQUEST_URI'] != "/")
+//   get::component('login')->logincrash();
+
+//print_r($_SESSION);
+
+echo get::helper('html')->setDocType('html5');
+
+$head['title'] = get::htmlentities(get::$title);
+$head['meta'] = get::$meta;
+//echo get::$meta;
+if(is::mobile() == 1) {
+//    $head['css'] = '/css/blueprint/src/reset.css';
+    $head['head'][] = $html->css('/css/blueprint/src/reset.css', 'screen, projection');
+    $head['head'][] = $html->css('/css/blueprint/src/typography.css', 'screen, projection');
+    $head['head'][] = $html->css('/css/blueprint/src/forms.css', 'screen, projection');
+    $head['head'][] = $html->css('/css/blueprint/plugin/liquid/liquid.css', 'screen, projection');
+    $head['head'][] = $html->css('/css/blueprint/perso.css', 'screen, projection');
+    $head['head'][] = $html->css('/css/blueprint/print.css', 'print');
+} else {
+    $head['css'] = '/css/blueprint/screen.css';
+    $head['head'][] = $html->css('/css/blueprint/perso.css', 'screen');
+    $head['head'][] = $html->css('/css/blueprint/print.css', 'print');
+}
+
+$head['meta']['viewport'] = 'minimum-scale=1.0, width=device-width, maximum-scale=0.6667, user-scalable=no';
+$head['meta']['description'] = 'BBB API Third party';
+
+$head['favicon'] = '/favicon.ico';
+//$head['animatedFavicon'] = '/favicon.gif';
+//$head['metaheader']['X-UA-Compatible'] = 'IE=EmulateIE7';
+//
+$head['head'][] = $html->js('/js/jquery.min.js');
+$head['head'][] = $html->js('/js/ajax.js');
+//$head['head'][] = $html->js('http://localhost/jsconsole/remote.js?cyp');
+//require_once '../lib/fb/FirePHP.class.php';
+//require_once '../lib/fb/fb.php';
+//ob_start();
+//$firephp = FirePHP::getInstance(true);
+//$firephp->log(&$mail_object, 'Class');
+
+echo $html->header($head);
+echo $html->jsTools();
+
+$lang = get::component('lang')->Lang();
+
+echo '<div class="container" id="container">';
+
+echo '<div class="header">';
+echo '<span class="connexion">';
+        echo '<ul><li>';
+            echo (isset($_SESSION) && array_key_exists('email', $_SESSION)) ? 'Hello ' . $_SESSION['email'] : $html->link('/', $lang['connexion']);
+            echo ' | ';
+            echo (isset($_SESSION) && array_key_exists('email', $_SESSION)) ? $html->link('/l', $lang['deconnexion']) : $html->link('/register', $lang['enregistrement']);
+
+        echo '</li></ul></span> <!-- .connexion -->';
+
+        echo '<span class="span-14">';
+            $lien_accueil = (isset($_SESSION) && array_key_exists('email', $_SESSION)) ? get::$config->SITE_URL . 'app/' : get::$config->SITE_URL;
+            echo $html->link($lien_accueil, '<img src="/images/logo_web_bbb.png" alt="Logo BigBlueButton LegeardWeb" />');
+            //echo $html->p('Webconférence Open-source');
+        echo '</span>';
+
+        if(isset($_SESSION) && array_key_exists('email', $_SESSION)) {
+        echo '<span class="span-7">';
+            echo '<ul>';
+            $get_room = get::model('divers')->getParticipantUser($_SESSION['id_utilisateur']);
+            if(isset($get_room)) $nb_participant = $get_room['nb_participant']; else $nb_participant = 0;
+            echo '<li>Nombre de participants actuellement : <strong>' . $nb_participant . '</strong></li>';
+            $nb_salle = get::model('divers')->getSalleUser($_SESSION['id_utilisateur']);
+            if(isset($nb_salle)) $nb_salle = $nb_salle['nb_salle']; else $nb_salle = 0;
+            echo '<li>Nombre de salle cr&eacute;e : <strong>' . $nb_salle . '</strong></li>';
+            $max_salle = get::model('consommation')->getMaxSalle($_SESSION['id_tarif']);
+            $nb_salle = get::model('divers')->getSalleUser($_SESSION['id_utilisateur']);
+            if(isset($nb_salle) && isset($max_salle))
+                $possible_salle = $max_salle['max_salle']-$nb_salle['nb_salle'];
+            else $possible_salle = 0;
+            
+            echo '<li>Nombre de salle possible : <strong>' . $possible_salle . '</strong></li>';
+            echo '</ul>';
+        echo '</span>';
+        }
+
+        echo '<br class="clear" />';
+
+echo '</div>';
+
+if (isset($alert)) {
+    echo $html->getNotifications($alert);
+}
+
+echo $view;
+
+
+
+echo '<br class="clear" />';
+echo '<div class="footer">
+        &copy; Copyright Vincent Legeard RCS Alen&ccedil;on 499 355 725 : CNIL N&deg; 1254706';
+//uncomment the next line to show your appreciation of Vork
+echo $html->div($html->link('http://www.Vork.us', 'Super-Powered by Vork, High-Performance Framework'));
+echo '</div><!-- .footer -->';
+echo '</div><!-- .container -->';
+
+
+echo $html->footer();

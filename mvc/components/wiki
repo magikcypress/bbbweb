@@ -1,0 +1,64 @@
+<?php
+/**
+ * Powers the Wiki functions when accessed within a controller
+ */
+class wikiComponent {
+    /**
+     * Bootstrap function that controls the whole Wiki system
+     *
+     * @param boolean $enableEdit Optional, true if ommitted
+     * @return array
+     */
+    public function getWiki($enableEdit = true) {
+        if (!isset($_POST['wsearch']) && isset($_GET['wsearch'])) {
+            $_POST['wsearch'] = $_GET['wsearch'];
+        }
+        if (isset($_POST['wsearch'])) {
+            $_POST['wsearch'] = trim($_POST['wsearch']);
+            if ($_POST['wsearch']) {
+                $return['enableEdit'] = false;
+                $return['searchResults'] = get::model('wiki')->search($_POST['wsearch']);
+                return $return;
+            }
+        }
+
+        $return['enableEdit'] = $enableEdit;
+        if (!isset(mvc::$params[0])) {
+            mvc::$params[0] = 'index';
+        }
+        if ($enableEdit) {
+            $return['action'] = mvc::$params[0];
+            if (isset($_GET['history'])) {
+                $return['history'] = get::model('wiki')->getHistory();
+                return $return;
+            }
+            if (isset($_POST['body'])) {
+                $_POST['body'] = get::component('filter')->cleanHtml($_POST['body']);
+                get::model('wiki')->update($_POST);
+            } else if (isset($_POST['delete'])) {
+                get::model('wiki')->delete();
+            }
+            $html = get::helper('html');
+            $html->vorkHead['cssInline'][] = '#wikibody #wikititle, #wikibody #wikicomments {width: 630px;} '
+                . '#wikibody textarea {width: 630px; height: 50px;} '
+                . '#wikibody #wikiwysiwyg {border: 2px solid; margin-bottom: 20px; padding: 5px;} '
+                . '#wikibody #wikiwysiwyglabel {margin-top: 10px;} #wikibody #wikisave {font-weight: bold;} '
+                . '#wikibody #wikidelete {margin-top: 30px; margin-left: 650px; color: red;}';
+        }
+        $version = (isset($_GET['version']) && $enableEdit ? $_GET['version'] : null);
+        $return = array_merge(get::model('wiki')->select($version), $return);
+        return $return;
+    }
+
+    /**
+     * Simplified Wiki - just add to the end of your controller method:
+     * return get::component('wiki')->wiki();
+     *
+     * @param boolean $enableEdit Optional, true if ommitted
+     * @return array
+     */
+    public function wiki($enableEdit = true) {
+        mvc::$view = '#wiki';
+        return $this->getWiki($enableEdit);
+    }
+}

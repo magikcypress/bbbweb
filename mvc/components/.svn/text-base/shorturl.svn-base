@@ -1,0 +1,40 @@
+<?php
+class shorturlComponent {
+    /**
+     * Short URL logic to either display new URL form, forward to the URL associated with a Short URL or throw 404 error
+     */
+    public function __construct() {
+        if (isset(mvc::$params[0])) {
+            $model = get::model('shorturl');
+            $shortUrl = $model->getShortUrl(mvc::$params[0]);
+            if ($shortUrl) {
+                $model->logForward(mvc::$params[0]);
+                load::redirect($shortUrl);
+            } else {
+                mvc::$controller = get::$config->errorHandler; //404
+                mvc::$action = 'notFound';
+                return;
+            }
+        }
+        $this->_createShortUrl();
+    }
+
+    /**
+     * Create a new short URL
+     */
+    protected function _createShortUrl() {
+        if (isset($_POST['url'])) {
+            $_POST['url'] = trim($_POST['url']);
+            if (strpos($_POST['url'], 'http') !== 0) {
+                $_POST['url'] = 'http://' . $_POST['url'];
+            }
+            require_once get::$config->packagesPath() . 'validator';
+            $Validator = new Validator;
+            if (!filter_var($_POST['url'], FILTER_VALIDATE_URL) || !$Validator->isValidUrl($_POST['url'])) {
+                $_POST['errors']['url'] = 'URL does not appear to be valid';
+            } else {
+                $_POST['shortUrl'] = get::model('shorturl')->addShortUrl($_POST['url']);
+            }
+        }
+    }
+}

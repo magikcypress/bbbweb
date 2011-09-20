@@ -1,0 +1,13 @@
+<?php
+
+echo '<div class="menugauche span-6">';
+echo '<ul>';
+echo '<li>' . $html->link('/app/', 'Accueil') . '</li>';
+echo '<li>' . $html->link('/app/creer', 'Créer un salle') . '</li>';
+echo '<li>' . $html->link('/app/planning/' . $_SESSION['email'], 'Gérer le planning') . '</li>';
+echo '<li>' . $html->link('/app/profil/' . $_SESSION['email'], 'Mon profil') . '</li>';
+echo '<li>' . $html->link('/app/conso/' . $_SESSION['email'], 'Consommation') . '</li>';
+echo '<li>' . $html->link('/app/tarifs/' . $_SESSION['email'], 'Upgrade') . '</li>';
+echo '</ul>';
+echo '</div>';
+?>

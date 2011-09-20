@@ -1,0 +1,13 @@
+<?php
+     get::$title = 'Bienvenue sur bbb';
+     echo $html->h1('Enregistrement terminé');
+?>
+    
+<div class="span-14">
+    <?php
+     echo '<p>Votre enregistrement c\'est correctement déroulé, nous vous remercions de votre confiance.</p>';
+
+     ?>
+
+
+</div>

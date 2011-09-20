@@ -1,0 +1,47 @@
+<?php
+/**
+ * Account-related functionality
+ */
+class tarifComponent {
+
+    /**
+     * Récupére les tarif
+     */
+    public function listTarifs() {
+        $tarifs = get::model('consommation')->getTarifs();
+        return $tarifs;
+    }
+
+    /**
+     * Récupére les tarif
+     */
+    public function selectUserTarifs($email) {
+        $tarifs = get::model('consommation')->getUserTarifs($email);
+        return $tarifs;
+    }
+
+    /**
+     * Récupére le nombre de jour restant
+     */
+    public function selectDayOut($email) {
+        $date_now = date('Y-m-d h:i:s');
+        $date_register = get::model('consommation')->getUserRegisterDay($_SESSION['id_utilisateur']);
+        $date_register = $date_register['date'];
+
+//        echo $date_now;
+//        echo '<br />';
+//        echo $date_register;
+//        echo '<br />';
+//        echo round((strtotime("$date_register +1 month") - strtotime($date_now)+60*60*1)/(60*60*24));
+//        echo '<br />';
+        // date start
+        //$return['start_date'] = floor((strtotime($date_now) - strtotime($date_register)+60*60*1)/(60*60*24));
+        // default
+        $return['start_date'] = floor((strtotime("$date_register +1 month") - strtotime($date_register)+60*60*1)/(60*60*24));
+        return $return['start_date'];
+    }
+
+    
+    
+
+}

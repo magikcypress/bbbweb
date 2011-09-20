@@ -1,0 +1,85 @@
+<?php
+    get::$title = 'Vos informations';
+    echo $html->h1('Vos informations');
+    echo $html->h2('Insérer vos informations personnels dans le champs pour poursuivre votre demande');
+
+    include("menu");
+?>
+<div class="span-12" id="span-14">
+
+<?php
+
+$profilAction = '/app/profil/' . $_SESSION['email'] . '/updateUser';
+if (!isset($profilAction)) {
+    $profilAction = get::url(array('ssl' => false));
+}
+
+    // Test info
+    if (isset($profil['nom']) && empty($profil['nom'])) {
+        $_POST['errors']['nom'] = 'Votre nom n\'est pas inséré';
+    }
+    if (isset($profil['prenom']) && empty($profil['prenom'])) {
+        $_POST['errors']['prenom'] = 'Votre prénom n\'est pas inséré';
+    }
+    if (isset($profil['email']) && empty($profil['email'])) {
+        $_POST['errors']['email'] = 'Votre email n\'est pas inséré';
+    }
+    if (isset($profil['raison_social']) && empty($profil['raison_social'])) {
+        $_POST['errors']['raison_social'] = 'Votre raison sociale n\'est pas insérée';
+    }
+    if (isset($profil['adresse']) && empty($profil['adresse'])) {
+        $_POST['errors']['adresse'] = 'Votre adresse n\'est pas insérée';
+    }
+    if (isset($profil['code_postal']) && empty($profil['code_postal'])) {
+        $_POST['errors']['code_postal'] = 'Votre code postal n\'est pas inséré';
+    }
+    if (isset($profil['ville']) && empty($profil['ville'])) {
+        $_POST['errors']['ville'] = 'Votre ville n\'est pas insérée';
+    } 
+
+    echo $form->open(array('action' => $profilAction, 'method' => 'post', 'id' => 'profilform', 'alert' => 'Les champs marqués d\'un astérisque sont obligatoires' ));
+
+    echo $form->input(array('type' => 'text', 'name' => 'nom', 'value' => $profil['nom'], 'id' => 'nom', 'label' => 'Nom *', 'addBreak' => false));
+    echo $form->input(array('type' => 'text', 'name' => 'prenom', 'value' => $profil['prenom'], 'id' => 'prenom', 'label' => 'Prénom *', 'addBreak' => false));
+    echo $form->input(array('type' => 'text', 'name' => 'raison_social', 'value' => $profil['raison_social'], 'id' => 'raison_social', 'label' => 'Société *', 'addBreak' => false));
+    echo $form->input(array('type' => 'text', 'name' => 'email', 'value' => $profil['email'], 'id' => 'email', 'label' => 'Email *', 'addBreak' => false));
+    echo $form->input(array('type' => 'text', 'name' => 'tel', 'value' => $profil['tel'], 'id' => 'tel', 'label' => 'Téléphone *', 'addBreak' => false));
+    echo $form->input(array('type' => 'textarea', 'name' => 'adresse', 'id' => 'adresse', 'label' => 'Adresse *', 'value' => $profil['adresse'], 'addBreak' => false));
+    echo $form->input(array('type' => 'text', 'name' => 'code_postal', 'value' => $profil['code_postal'], 'id' => 'code_postal', 'label' => 'Code postal *', 'addBreak' => false));
+    echo $form->input(array('type' => 'text', 'name' => 'ville', 'value' => $profil['ville'], 'id' => 'ville', 'label' => 'Ville *', 'addBreak' => false));
+    echo $form->input(array('type' => 'text', 'name' => 'password', 'value' => '', 'label' => 'Mot de passe', 'id' => 'password', 'addBreak' => false));
+    echo $form->input(array('type' => 'text', 'name' => 'password2', 'value' => '', 'label' => 'Confirmer mot de passe', 'id' => 'password2', 'addBreak' => false));
+
+    $selected = ($profil['newsletters'] == 1) ? 'checked="checked"' : '';
+    echo '<p><input type="checkbox" name="newsletters" id="newsletters" value="' . $profil['newsletters'] . '" ' . $selected . ' /> Souhaitez vous recevoir des informations sur notre activité</p>';
+    echo $form->input(array('type' => 'hidden','name' => 'email', 'value' => $_SESSION['email']));
+    echo $form->input(array('type' => 'submit','name' => 'submit', 'id' => 'submit', 'value' => 'Modifier'));
+    echo $form->close();
+
+?>
+
+</div>
+
+<span class="span-5">
+    <h4>Aide</h4>
+    Le Lorem Ipsum est simplement du faux texte employé dans la composition et la mise en page avant impression.
+    Le Lorem Ipsum est le faux texte standard de l'imprimerie depuis les années 1500, quand un peintre anonyme
+    assembla ensemble des morceaux de texte pour réaliser un livre spécimen de polices de texte.
+
+</span>
+
+<?php
+//        $tools = get::helper('tools');
+//        echo $tools->googleTranslateById('profilformerrorwrapper', 'en');
+//        echo $tools->googleTranslateById('nomlabel', 'en');
+//        echo $tools->googleTranslateById('prenomlabel', 'en');
+//        echo $tools->googleTranslateById('emaillabel', 'en');
+//        echo $tools->googleTranslateById('tellabel', 'en');
+//        echo $tools->googleTranslateById('raison_sociallabel', 'en');
+//        echo $tools->googleTranslateById('adresse', 'en');
+//        echo $tools->googleTranslateById('code_postallabel', 'en');
+//        echo $tools->googleTranslateById('villelabel', 'en');
+//        echo $tools->googleTranslateById('passwordlabel', 'en');
+//        echo $tools->googleTranslateById('password2label', 'en');
+//        echo $tools->googleTranslateById('submit', 'en');
+?>

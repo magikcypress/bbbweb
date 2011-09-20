@@ -1,0 +1,8 @@
+<?php
+echo $html->jsInline($html->jsTools(true) . 'document.writeln("<a href=\"javascript: dom(\'logoutform\').submit();\">Logout</a>");');
+echo $form->open(array('action' => '/', 'id' => 'logoutform'));
+echo $form->input(array('type' => 'hidden', 'name' => 'logout', 'value' => 'logout'));
+echo $form->input(array('type' => 'submit', 'name' => 'logoutbutton', 'id' => 'logoutbutton',
+                           'value' => 'Logout'));
+echo $form->close();
+echo $html->jsInline('dom("logoutform").className = "logoutformjs";');

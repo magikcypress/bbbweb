@@ -1,0 +1,34 @@
+<?php
+/**
+ * Compter participant et salles functionality
+ */
+class comptageComponent {
+
+    /**
+     * Total salle crée
+     * @return num
+     */
+    public function totalSalles() {
+        $parametres = get::model()->getPara();
+        $return['activity_room'] = get::component('bbbapi')->getMeetingsArray( $parametres[1]['urlbbb'], $parametres[1]['clebbb'] );
+        $return['nb_salle'] = count($return['activity_room']);
+        return $return;
+    }
+
+    /**
+     * Total particpant en ligne
+     * @return num
+     */
+    public function totalParticipants() {
+        $parametres = get::model()->getPara();
+        $return['get_room'] = get::component('bbbapi')->getMeetings( $parametres[1]['urlbbb'], $parametres[1]['clebbb'] );
+        $return['get_room'] = simplexml_load_string($return['get_room']);
+        foreach ($return['get_room']->meeting as $meeting) {
+                $return['get_room'] = $meeting->participantCount;
+        }
+        //$return['get_room'] = count($return['get_room']);
+        return $return;
+
+    }
+        
+}

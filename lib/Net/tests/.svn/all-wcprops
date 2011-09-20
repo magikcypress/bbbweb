@@ -1,0 +1,29 @@
+K 25
+svn:wc:ra_dav:version-url
+V 44
+/bbbwebclient/!svn/ver/20/vork/lib/Net/tests
+END
+quotedata.phpt
+K 25
+svn:wc:ra_dav:version-url
+V 59
+/bbbwebclient/!svn/ver/20/vork/lib/Net/tests/quotedata.phpt
+END
+auth.phpt
+K 25
+svn:wc:ra_dav:version-url
+V 54
+/bbbwebclient/!svn/ver/20/vork/lib/Net/tests/auth.phpt
+END
+basic.phpt
+K 25
+svn:wc:ra_dav:version-url
+V 55
+/bbbwebclient/!svn/ver/20/vork/lib/Net/tests/basic.phpt
+END
+config.php.dist
+K 25
+svn:wc:ra_dav:version-url
+V 60
+/bbbwebclient/!svn/ver/20/vork/lib/Net/tests/config.php.dist
+END

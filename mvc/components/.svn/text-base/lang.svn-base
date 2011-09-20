@@ -1,0 +1,15 @@
+<?php
+/**
+ * Lang
+ */
+class langComponent {
+    
+        public function lang() {
+                $language = $_SERVER['HTTP_ACCEPT_LANGUAGE'];
+                $language = $language{0}.$language{1};
+                // fork vork webroot file
+                $lang = get::lang($language)->Lang();
+
+                return $lang;
+        }
+}

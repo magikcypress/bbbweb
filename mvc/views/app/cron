@@ -1,0 +1,41 @@
+<?php
+    // wget http://vork/app/cron -O /dev/null
+    get::$title = 'Cron background pour création de salle';
+    
+    // Cron pour voir si une salle a besoin d'être ouverte
+    if(isset($data['cron'])) {
+        foreach ($data['cron'] as $id_planning) {
+            if(strtotime($id_planning['date_debut']) <= strtotime(date('Y-m-d h:i:s'))) {
+                $parametres = get::model('divers')->getPara();
+                $name = "Moderateur";
+                // Creation de la salle sur BBB
+                $return['create_room'] = get::component('bbbapi')->createMeetingArray( $name, $id_planning['nom'], $parametres[1]['bienvenue'], $parametres[1]['codevip'], $parametres[1]['numero_tel'], uniqid(), uniqid(), $parametres[1]['clebbb'], $parametres[1]['urlbbb'], $parametres[1]['urlbbbdefaut'] );
+            }
+        }
+    }
+
+    // Abonnement expiré
+    if(isset($data['cron_conso'])) {
+        foreach ($data['cron_conso'] as $id_consommation) {
+            if(strtotime($id_consommation['date']) <= strtotime(date('Y-m-d h:i:s'))) {
+                $args = array('id_consommation' => $id_consommation['id_consommation']);
+                $return['data'] = get::model('consommation')->updateTarif($_SESSION['email'], $args);
+            }
+        }
+    }
+
+
+/* Stat bandepassante */
+$dir = "../../../logs";
+if(is_dir($dir)) {
+    $date_day = date('Ymdhis');
+    $cmd = 'vnstati -s -i eth0 -o ' . $dir . '/statss' . $date_day . '.png';
+    echo $cmd;
+    exec( $cmd );
+
+    $cmd = 'vnstati -h -i eth0 -o ' . $dir . '/statsh' . $date_day . '.png';
+    exec( $cmd );
+
+    $cmd = 'vnstati -m -i eth0 -o ' . $dir . '/statsm' . $date_day . '.png';
+    exec( $cmd );
+}

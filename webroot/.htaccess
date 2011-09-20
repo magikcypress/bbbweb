@@ -1,0 +1,18 @@
+#These settings are equired for proper framework operation
+#You will need to make the equivalent settings to non-Apache web servers
+
+DirectoryIndex vork
+ErrorDocument 404 /vork/error/notFound
+
+<Files vork>
+    ForceType application/x-httpd-php
+</Files>
+
+<IfModule mod_rewrite.c>
+    RewriteEngine on
+    Options +FollowSymLinks
+    RewriteRule \.(svn|cvs|git|htaccess|htpasswd) - [L,NC,F]
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-l
+    RewriteRule ^.*$ vork [QSA]
+</IfModule>

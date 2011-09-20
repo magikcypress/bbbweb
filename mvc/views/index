@@ -1,0 +1,66 @@
+<div class="span-23">
+
+<span class="span-12">
+    <?php
+    $lang = get::component('lang')->Lang();
+    echo $html->h1($lang['webconf_online']);
+    echo $html->h3('Prendre le pouvoir de la webconf&eacute;rence en ligne avec votre navigateur web et votre webcam.');
+    ?>
+
+    <div class="demo">
+      <video width="100%" height="292px" controls="controls">
+        <source src="../../media/test4.mp4" type="video/mp4" />
+        <source src="../../media/test4.webm" type="video/webm" />
+        <source src="../../media/test4.ogv" type="video/ogg" />
+     <p>Vous n'avez pas de navigateur moderne, ni flash d'installé sur Internet Explorer... suivez les liens ci-dessous pour télécharger les vidéos.</p>
+      </video>
+    </div>
+
+    <span class="span-6 nomarge">
+    <a href="http://legeardweb.com" title="Plus d'informations sur LegeardWeb"><img src="../../images/logo_lw.png" alt="Logo LegeardWeb" /></a>
+    </span>
+
+    <span class="span-6 nomarge">
+    <a href="http://bigbluebutton.org/overview" title="Plus d'informations sur BigBlueButton"><img src="../../images/logo_bbb.png" alt="Logo Big Blue Button" /></a>
+    </span>
+
+</span>
+
+<span class="span-10">
+<?php
+
+    echo $html->h2('Enregistrer vous');
+    echo $html->h3('Vous n\'avez pas de compte et vous souhaitez participer &agrave; l\'exp&eacute;rience.');
+    echo '<div class="register"><a href="/register">Profiter des 30 jours gratuits</a></div>';
+    echo '<hr />';
+
+    echo $html->h2($lang['acces_compte']);
+
+    $profilAction = "";
+    if (!isset($profilAction)) 
+        $profilAction = get::url(array('ssl' => false));
+    
+    echo $form->open(array('action' => $profilAction, 'method' => 'post'));
+    // Test info
+    if (isset($_POST['email']) && empty($_POST['email'])) {
+        $_POST['errors']['email'] = $lang['erreur_email'];
+    }
+    if (isset($_POST['mot_passe']) && empty($_POST['mot_passe'])) {
+        $_POST['errors']['mot_passe'] = $lang['erreur_passe'];
+    }
+
+    if(isset($errors))
+        echo '<div class="errormessageb">' . $errors . '</div>';
+
+    echo $form->input(array('type' => 'text', 'name' => 'email', 'value' => '', 'label' => $lang['adresse_email']));
+    echo $form->input(array('type' => 'password', 'name' => 'mot_passe', 'value' => '', 'label' => $lang['mot_passe']));
+    //echo $form->input(array('type' => 'hidden','name' => 'id_cle', 'value' => uniqid()));
+    echo $form->input(array('type' => 'submit','name' => 'submit', 'value' => $lang['connexion']));
+    echo '<br /><br /><a href="/lost">' . $lang['mot_passe_perdu'] . '</a>';
+    echo $form->close();
+
+?>
+ 
+</span>
+
+</div>

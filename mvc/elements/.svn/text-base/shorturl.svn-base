@@ -1,0 +1,13 @@
+<?php
+echo $form->open();
+echo $html->div($form->input(array('name' => 'url', 'label' => 'URL', 'class' => 'wideinput', 'value' => 'http://',
+                                      'maxlength' => 765)));
+echo $html->div($form->input(array('type' => 'submit', 'value' => 'Generate short URL')));
+echo $form->close();
+if (isset($_POST['shortUrl'])) {
+    $baseUrl = 'http://' . get::$config->SITE_DOMAIN . '/' . mvc::$controller . '/';
+    if (mvc::$action != 'index') {
+        $baseUrl .= mvc::$action . '/';
+    }
+    echo $html->h2('Short URL: ' . $html->link($baseUrl . get::htmlentities($_POST['shortUrl'])));
+}

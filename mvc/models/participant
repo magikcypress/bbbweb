@@ -1,0 +1,155 @@
+<?php
+/**
+ * Functions required by the account controller.
+ */
+class participantModel extends model {
+    /**
+     * Table/collection name - only need to change this if you will be operating multiple Vork account instances
+     * on the same database
+     * @var string
+     */
+    protected $_table = 'participant';
+
+    /**
+     * Database type to use
+     * @var string Either sql or mongo
+     */
+    protected $_db;
+
+    /**
+     * Mongo collection object cache
+     * @var MongoCollection
+     */
+    protected $_mongo;
+
+    /**
+     * Sets $this->_db and if it is Mongo then it sets the MongoDB collection
+     */
+    public function __construct() {
+        $this->_db = (!in_array('mongo', config::$modelObjects) ? 'sql' : 'mongo');
+    }
+
+    /**
+     * Switchboard to route to either SQL or Mongo methods
+     *
+     * @param string $name
+     * @param array $args
+     */
+    public function __call($name, array $args) {
+        $name = '_' . $this->_db . ucfirst($name);
+        if ($this->_db == 'mongo' && !$this->_mongo) {
+            $this->_mongo = $this->mongo->selectCollection($this->_table);
+        }
+        return call_user_func_array(array($this, $name), $args);
+    }
+
+    /**
+     * Get Participant par salle
+     */
+    public function _sqlgetParticipantByMeetings($id_meeting) {
+
+        $sql = 'select id_participant, email, nom, date_creation from ' . $this->_table . ' where id_meeting like ' . $this->db->cleanString($id_meeting);
+        $res = $this->db->query($sql);
+        while ($row = $res->fetch_assoc()) {
+            $participant[$row['id_participant']] = array('id_participant' => $row['id_participant'], 'nom' => $row['nom'], 'email' => $row['email'], 'date_creation' => $row['date_creation']);
+        }
+        if(isset($participant))
+            return $participant;
+        else
+            return;
+    }
+    public function _mongogetParticipantByMeetings($id_meeting) {
+        $participant = $this->_mongo->findOne(array('id_meeting' => $id_meeting));
+        return;
+    }
+
+    /**
+     * Get Participant
+     */
+    public function _sqlgetParticipant() {
+        $sql = 'select id_participant, email, nom, date_creation from ' . $this->_table . ' where id_utilisateur=' . $this->db->cleanString($_SESSION['id_utilisateur']);
+        $res = $this->db->query($sql);
+        while ($row = $res->fetch_assoc()) {
+            $participant[$row['id_participant']] = array('id_participant' => $row['id_participant'], 'nom' => $row['nom'], 'email' => $row['email'], 'date_creation' => $row['date_creation']);
+        }
+        if(isset($participant))
+            return $participant;
+        else
+            return;
+    }
+    public function _mongogetParticipant() {
+        $participant = $this->_mongo->findOne(array('id_utilisateur' => $id_utilisateur));
+        return;
+    }
+
+    /**
+     * Get single Participant
+     */
+    public function _sqlsingleParticipant($id_participant) {
+        $sql = 'select email from ' . $this->_table . ' where id_participant = ' . $id_participant;
+        $res = $this->db->query($sql);
+        $row = $res->fetch_assoc();
+        $email = $row['email'];
+        if(isset($email)) return $email;
+    }
+    public function _mongosingleParticipant($id_participant) {
+        $res = $this->_mongo->findOne(array('id_participant' => $id_participant));
+        return $res;
+    }
+
+    /**
+     * Valid Participant
+     */
+    public function _sqlvalidParticipant($email) {
+        $sql = 'select email from ' . $this->_table . ' where email=' . $this->db->cleanString($email) . 'and id_utilisateur = ' . $_SESSION['id_utilisateur'];
+        $res = $this->db->query($sql);
+        $row = $res->fetch_assoc();
+        return (boolean) ($row['email']) ? false : true;
+    }
+    public function _mongogetAbonnement($email) {
+        $email = $this->_mongo->findOne(array('email' => $email));
+        return ($row ? $row['email'] : false);
+    }
+
+    /**
+     * Add Participant
+     */
+    public function _sqladdParticipant(array $args) {
+        $args = $this->db->cleanString($args);
+        foreach ($args as $key => $val) {
+            $sqlKey[] = $key;
+            $sqlval[] = $val;
+        }
+        $sql = 'insert into ' . $this->_table . ' (' . implode(',', $sqlKey) . ') values(' . implode(',', $sqlval) . ')';
+        $this->db->query($sql);
+
+    }
+    public function _mongoaddParticipant(array $args = array()) {
+        $this->_mongo->insert($args);
+    }
+
+    /**
+     * Delete Participant
+     */
+    public function _sqldeleteParticipant() {
+        $sql = 'delete from  ' . $this->_table . '  where id_participant=' . $this->db->cleanString(mvc::$params[1]);
+        $this->db->query($sql);
+    }
+    public function _mongodeleteParticipant() {
+        $row = $this->_mongo->remove(mvc::$params[1]);
+        return;
+    }
+
+    /**
+     * Delete Participant by meeting
+     */
+    public function _sqldeleteParticipantByMeeting() {
+        $sql = 'delete from  ' . $this->_table . '  where id_meeting=' . $this->db->cleanString(mvc::$params[1]);
+        $this->db->query($sql);
+    }
+    public function _mongodeleteParticipantByMeeting() {
+        $row = $this->_mongo->remove(mvc::$params[1]);
+        return;
+    }
+
+}

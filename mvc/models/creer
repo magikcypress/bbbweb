@@ -1,0 +1,141 @@
+<?php
+/**
+ * Functions required by the account controller.
+ */
+class creerModel extends model {
+    /**
+     * Table/collection name - only need to change this if you will be operating multiple Vork account instances
+     * on the same database
+     * @var string
+     */
+    protected $_table_connexion = 'connexion';
+    protected $_table_salle = 'salle';
+
+    /**
+     * Database type to use
+     * @var string Either sql or mongo
+     */
+    protected $_db;
+
+    /**
+     * Mongo collection object cache
+     * @var MongoCollection
+     */
+    protected $_mongo_connexion;
+    protected $_mongo_salle;
+
+    /**
+     * Sets $this->_db and if it is Mongo then it sets the MongoDB collection
+     */
+    public function __construct() {
+        $this->_db = (!in_array('mongo', config::$modelObjects) ? 'sql' : 'mongo');
+    }
+
+    /**
+     * Switchboard to route to either SQL or Mongo methods
+     *
+     * @param string $name
+     * @param array $args
+     */
+    public function __call($name, array $args) {
+        $name = '_' . $this->_db . ucfirst($name);
+        if ($this->_db == 'mongo' && !$this->$_mongo_salle && !$this->$_mongo_connexion) {
+            $this->_mongo_connexion = $this->mongo->selectCollection($this->_table_connexion);
+            $this->_mongo_salle = $this->mongo->selectCollection($this->_table_salle);
+        }
+        return call_user_func_array(array($this, $name), $args);
+    }
+
+    /**
+     * Get Connexion
+     */
+    public function _sqlgetConnexion($id_utilisateur) {
+        $sql = 'select * from ' . $this->_table_connexion . ' where id_utilisateur=?';
+        $res = $this->db->pquery($sql, $id_utilisateur);
+        return $res->fetch_assoc();
+    }
+    public function _mongogetConnexion($id_utilisateur) {
+        $res = $this->_mongo_connexion->findOne(array('id_utilisateur' => $id_utilisateur));
+        return $res;
+    }
+
+     /**
+     * Update Connexion
+     */
+    public function _sqlupdateConnexion($id_utilisateur, array $args) {
+        $args = $this->db->cleanString($args);
+        foreach ($args as $key => $val) {
+            $sqlCols[] = $key . '=' . $val;
+        }
+        $sql = 'update ' . $this->_table_connexion . ' set ' . implode(',', $sqlCols) . ' where id_utilisateur=' . $this->db->cleanString($id_utilisateur);
+        $this->db->query($sql);
+    }
+    public function _mongoupdateConnexion($id_utilisateur, array $args = array()) {
+        $args['id_utilisateur'] = $id_utilisateur;
+        $this->_mongo_connexion->update(array('id_utilisateur' => $id_utilisateur), $args);
+    }
+
+    /**
+     * Get Salle
+     */
+    public function _sqlgetSalle($id_utilisateur) {
+        $sql = 'select * from ' . $this->_table_salle . ' where id_utilisateur=' . $this->db->cleanString($id_utilisateur);
+        $res = $this->db->query($sql);
+        while ($row = $res->fetch_assoc()) {
+            $salle[$row['id_salle']] = array('id_salle' => $row['id_salle'], 'nom_salle' => $row['nom_salle'], 'nom' => $row['nom'], 'passmd' => $row['passmd'], 'passap' => $row['passap'], 'email' => $row['email'], 'url_moderateur' => $row['url_moderateur'], 'url_fin' => $row['url_fin'], 'date_creation' => $row['date_creation']);
+        }
+        if(isset($salle)) return $salle;
+    }
+    public function _mongogetSalle($id_utilisateur) {
+        $res = $this->_mongo_salle->findOne(array('id_utilisateur' => $id_utilisateur));
+        return $res;
+    }
+
+    /**
+     * Get InfoSalle
+     */
+    public function _sqlgetInfoSalle($id_meeting) {
+        $sql = 'select * from ' . $this->_table_salle . ' where id_salle=' . $this->db->cleanString($id_meeting);
+        $res = $this->db->query($sql);
+        while ($row = $res->fetch_assoc()) {
+            $salle[$row['id_salle']] = array('id_salle' => $row['id_salle'], 'nom_salle' => $row['nom_salle'], 'nom' => $row['nom'], 'passmd' => $row['passmd'], 'passap' => $row['passap'], 'email' => $row['email'], 'url_moderateur' => $row['url_moderateur'], 'url_fin' => $row['url_fin'], 'date_creation' => $row['date_creation']);
+        }
+        if(isset($salle)) return $salle;
+    }
+    public function _mongogetInfoSalle($id_meeting) {
+        $res = $this->_mongo_salle->findOne(array('id_salle' => $id_meeting));
+        return $res;
+    }
+
+    /**
+     * Insert Salle
+     */
+    public function _sqlinsertSalle(array $args) {
+            $args = $this->db->cleanString($args);
+            foreach ($args as $key => $val) {
+                    $sqlKey[] = $key;
+                    $sqlval[] = $val;
+            }
+            $sql = 'insert into ' . $this->_table_salle . ' (' . implode(',', $sqlKey) . ') values(' . implode(',', $sqlval) . ')';
+            $this->db->query($sql);
+    }
+    public function _mongoinsertSalle(array $args) {
+        $args['id_utilisateur'] = $id_utilisateur;
+        $this->_mongo_salle->ensureIndex(array('id_utilisateur'), array('unique' => true));
+        $this->_mongo_salle->insert($args);
+        return;
+    }
+
+    /**
+     * Delete Salle
+     */
+    public function _sqldeleteSalle() {
+        $sql = 'delete from  ' . $this->_table_salle . '  where id_salle=' . $this->db->cleanString(mvc::$params[1]);
+        $this->db->query($sql);
+    }
+    public function _mongodeleteSalle() {
+        $row = $this->_mongo_salle->remove(mvc::$params[1]);
+        return;
+    }
+
+}

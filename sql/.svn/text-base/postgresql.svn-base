@@ -1,0 +1,92 @@
+<?php
+/**
+ * Converts the procedural PostgreSQL PHP class to object-oriented
+ */
+class postgresql {
+    /**
+     * Database link ID
+     * @var object
+     */
+    public $linkid;
+
+    /**
+     * The database method used to sanitize user input strings
+     */
+    const ESCAPE_STRING = 'escape_string';
+
+    /**
+     * Query results object
+     * @var object
+     */
+    protected $_result;
+
+    /**
+     * Connect to PostgreSQL
+     *
+     * @param string $host
+     * @param string $username
+     * @param string $passwd
+     * @param string $dbname
+     */
+    public function __construct($host, $username, $password, $dbname, $connectType = null) {
+        try {
+            $this->linkid = pg_connect("host=$host dbname=$dbname user=$username password=$password", $connectType);
+            if (!$this->linkid) {
+                throw new Exception('Cannot connect to PostgreSQL');
+            }
+        } catch (Exception $e) {
+            $this->error = $e->getMessage();
+        }
+    }
+
+    /**
+     * Query the database
+     *
+     * @param string $query
+     * @return object
+     */
+    public function query($query){
+        try{
+            $this->_result = pg_query($this->linkid, $query);
+            if(!$this->_result) {
+                throw new Exception('Query failed: ' . $query);
+            }
+        } catch (Exception $e){
+            $this->error = $e->getMessage();
+        }
+       return $this->_result;
+    }
+
+    /**
+     * Catch-all method to handle the different PostgreSQL functions allowing you to call:
+     *
+     * fetchAllColumns()
+     * fetchAll()
+     * fetchArray()
+     * fetchAssoc()
+     * fetchObject()
+     * fetchResult()
+     * fetchRow()
+     *
+     * Note: passing the result set to fetch functions is optional as a convenience
+     *
+     * @param string $name
+     * @param mixed $val
+     */
+    public function __call($name, $val) {
+        if (!$val) {
+            $fetch = explode('fetch', $name);
+            if ($fetch && isset($fetch[1])) {
+                $fetchName = 'pg_fetch_' . strtolower($fetch[1]);
+                if ($fetchName == 'pg_fetch_allcolumns') {
+                    $fetchName = 'pg_fetch_all_columns';
+                }
+                return $fetchName($this->_result);
+            }
+        }
+        $name = strtolower('pg_' . preg_replace('/[A-Z]/', '_$0', $name));
+        if (function_exists($name)) {
+            return call_user_func_array($name, $val);
+        }
+    }
+}

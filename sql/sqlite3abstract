@@ -1,0 +1,19 @@
+<?php
+abstract class sqlite3abstract extends SQLite3 {
+    /**
+     * The database method used to sanitize user input strings
+     */
+    const ESCAPE_STRING = 'escapeString';
+
+    /**
+     * Inserts a new row or updates the content of an existing one
+     * Takes the same parameters as the insertSql()
+     *
+     * @param array $args
+     * @return string
+     */
+    public function insertOrUpdateSql(array $args) {
+        $sql = 'insert or replace' . substr($this->insertSql($args), 6);
+        return $sql;
+    }
+}

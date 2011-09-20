@@ -1,0 +1,29 @@
+<div class="span-23" style="text-align: center">
+
+<?php
+     echo $html->h1('Accéder à votre compte');
+
+    $profilAction = "";
+    if (!isset($profilAction)) 
+        $profilAction = get::url(array('ssl' => false));
+    
+    echo $form->open(array('action' => $profilAction, 'method' => 'post'));
+    // Test info
+    if (isset($_POST['email']) && empty($_POST['email'])) {
+        $_POST['errors']['email'] = 'Votre email n\'est pas inséré';
+    }
+    if (isset($_POST['mot_passe']) && empty($_POST['mot_passe'])) {
+        $_POST['errors']['mot_passe'] = 'Votre mot de passe n\'est pas inséré';
+    }
+
+    if(isset($errors))
+        echo '<div class="errormessageb">' . $errors . '</div>';
+
+    echo $form->input(array('type' => 'text', 'name' => 'email', 'value' => '', 'label' => 'Adresse email'));
+    echo $form->input(array('type' => 'password', 'name' => 'mot_passe', 'value' => '', 'label' => 'Mot de passe'));
+    //echo $form->input(array('type' => 'hidden','name' => 'id_cle', 'value' => uniqid()));
+    echo $form->input(array('type' => 'submit','name' => 'submit', 'value' => 'Connexion'));
+    echo $form->close();
+?>
+    <a href="/forgotPassword">Mots de passe oublié</a>
+</div>

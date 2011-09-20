@@ -1,0 +1,256 @@
+<?php
+/**
+ * Tools for file management and image modification
+ */
+class fileComponent {
+    /**
+     * Cache of files as they are processed
+     * @var array
+     */
+    public $files = array();
+
+    /**
+     * Get the dimensions of an image file, results are cached in the $this->files array and are indexed by $src
+     *
+     * @param string $src Location of the image file
+     * @return mixed Array on success, boolean false on failure
+     */
+    public function getImageSize($src) {
+        //error-suppression is needed to avoid error warnings from invalid images
+        $imageSize = @getimagesize($src);
+        if ($imageSize) {
+            list($this->files[$src]['width'], $this->files[$src]['height'], $this->files[$src]['type']) = $imageSize;
+        }
+        return $imageSize;
+    }
+
+    /**
+     * Get the format (gif, jpeg, etc.) of an image file
+     *
+     * @param string $src
+     * @return mixed String for standard image types, int for non-standard, boolean false on failure
+     */
+    public function getImageFormat($src) {
+        if (!isset($this->files[$src])) {
+            if (function_exists('exif_imagetype')) {
+                return exif_imagetype($src);
+            } else if (!$this->getImageSize($src)) {
+                return false;
+            }
+        }
+        //matches the PHP IMAGETYPE constants relevant to standard images (the two TIFF types are 7 & 8)
+        $formats = array(1 => 'gif', 'jpg', 'png', 'swf', 'psd', 'bmp', 'tif', 'tif', 15 => 'bmp');
+        return (isset($formats[$this->files[$src]['type']]) ? $formats[$this->files[$src]['type']]
+                                                            : $this->files[$src]['type']);
+    }
+
+    /**
+     * Checks if an uploaded file is invalid
+     *
+     * @param string $id The form input name
+     * @param boolean $imagesOnly Optional, default is false
+     * @return mixed Boolean false if valid, error message string if invalid
+     */
+    public function isInvalidUpload($id, $imagesOnly = false) {
+        $return = false;
+        if (!isset($_FILES[$id]['error'])) {
+            return 'File upload failed, please try again';
+        }
+
+        switch ($_FILES[$id]['error']) {
+            case '0':
+                if ($imagesOnly) {
+                    $imageSpecs = $this->getImageSize($_FILES[$id]['tmp_name']);
+                    if (!$imageSpecs) {
+                        $return = 'Upload failed or file is not an image';
+                    } else if (!in_array($imageSpecs['type'], range(1, 3))) {
+                        $return = 'Image type is not supported. Please upload a jpg, gif or png file.';
+                    }
+                }
+                break;
+            case '1':
+            case '2':
+                $return = 'The file exceeds the maximum permitted filesize';
+                break;
+            case '3':
+                $return = 'The file was only partially uploaded, please try again';
+                break;
+            case '4':
+                $return = 'Please select a file before pressing the upload button';
+                break;
+            default:
+                $return = 'There was a system error and your file could not be saved, please try again';
+                break;
+        }
+        return $return;
+    }
+
+    /**
+     * Validates and moves a file uploaded from a form
+     *
+     * @param string $id
+     * @param string $destination
+     * @param boolean $imagesOnly
+     * @return mixed Boolean false on success, an error message string on failure
+     */
+    public function uploadFile($id, $destination, $imagesOnly = false) {
+        $return = false;
+        if (substr($_FILES[$id]['name'], 0, 1) == '.') {
+            $return = 'File names must not begin with a dot';
+        } else {
+            $isInvalidUpload = $this->isInvalidUpload($id, $imagesOnly);
+            if ($isInvalidUpload) {
+                $return = $isInvalidUpload;
+            } else {
+                if (move_uploaded_file($_FILES[$id]['tmp_name'], $destination)) {
+                    if (is_dir($destination)) {
+                        $destinationLast = substr($destination, -1);
+                        if ($destinationLast != '/' && $destinationLast != '\\') {
+                            $destination .= '/';
+                        }
+                        $destination .= $_FILES[$id]['tmp_name'];
+                    }
+                    chmod($destination, 0777);
+                } else {
+                    $return = 'Could not move the uploaded file';
+                }
+            }
+        }
+        return $return;
+    }
+
+    /**
+     * Resizes an image or generates a set of resized images, optionally adding a watermark to any of them.
+     *
+     * Requires the PHP GD extension to be enabled.
+     *
+     * $specs array keys:
+     * width - default is original width, if constrain is true then this becomes the maximum width
+     * height - default is original height, if constrain is true then this becomes the maximum height
+     * constrain - Boolean, default is true - resize the image proportionally, if false the end image may be stretched
+     * onlyReduce - Boolean, default is true - if true the end image can only be reduced, never be enlarged (which
+     *              usually degrades quality)
+     * outputFolder - folder where to output the file, if omitted the system default will be used
+     * outputFile - filename, if omitted the source filename will be used
+     * stdout - return the image bitstream to stdout (echo the image out), overrides outputFolder & outputFile options
+     * watermark - array with keys:
+     *     src - required, the path to the watermark image file
+     *     opacity - Optional, default if omitted is 14
+     *
+     * You can specify generation of multiple output files by setting specs to an array of $specs, eg.:
+     * $specs[] = array('width' => 200, 'height' => 100, 'outputFile' => 'thumbnail.jpg');
+     * $specs[] = array('width' => 500, 'height' => 300, 'outputFile' => 'bigfile.jpg');
+     *
+     * @param array $specs
+     * @param string $src Optional, if omitted the last file $this->files will be used, if none exists method will exit
+     * @return boolean
+     */
+    public function resizeImage(array $specs, $src = null) {
+        if (!$src && $this->files) {
+            end($this->files);
+            $src = key($this->files);
+        }
+        if (!isset($this->files[$src]) && !$this->getImageSize($src)){
+            return false;
+        }
+        $types = array(1 => 'gif', 'jpeg', 'png');
+        $createImageFunction = 'imagecreatefrom' . $types[$this->files[$src]['type']];
+        $sourceImage = $createImageFunction($src);
+        if (!is_array(current($specs))) {
+            $specs = array($specs);
+        }
+        foreach($specs as $image) {
+            $width = $image['width'];
+            $height = $image['height'];
+            if (!isset($image['constrain']) || $image['constrain']) {
+                $proportion = ($width / $this->files[$src]['width']);
+                $proposedHeight = round($this->files[$src]['height'] * $proportion);
+                if ($proposedHeight <= $height) {
+                    $height = $proposedHeight;
+                } else {
+                    $proportion = ($height / $this->files[$src]['height']);
+                    $width = round($this->files[$src]['width'] * $proportion);
+                }
+
+                //need to check both height && width as due to rounding it is possible for
+                //one dimension to be equal and the other to be 1px larger than original
+                if ((!isset($image['onlyReduce']) || $image['onlyReduce'])
+                    && ($width > $this->files[$src]['width'] || $height > $this->files[$src]['height'])) {
+                    $width = $this->files[$src]['width'];
+                    $height = $this->files[$src]['height'];
+                }
+            }
+
+            if ($this->files[$src]['type']== 2) {
+                $finalImage = imagecreatetruecolor($width, $height);
+            } else {
+                $finalImage = imagecreate($width, $height);
+                imagecolortransparent($finalImage, imagecolorallocate($finalImage, 0, 0, 0));
+            }
+            $this->files[$src]['lastresize']['width'] = $width;
+            $this->files[$src]['lastresize']['height'] = $height;
+            imagecopyresampled($finalImage, $sourceImage, 0, 0, 0, 0, $width, $height,
+                               $this->files[$src]['width'], $this->files[$src]['height']);
+            if (isset($image['watermark']) && isset($image['watermark']['src'])) {
+                $watermarkSrc = $image['watermark']['src'];
+                if (!isset($this->files[$watermarkSrc]) && !$this->getImageSize($watermarkSrc)) {
+                    if (DEBUG_MODE) {
+                        trigger_error('Watermark file' . $watermarkSrc . ' is invalid', E_USER_NOTICE);
+                    }
+                }
+                if (isset($this->files[$watermarkSrc])) {
+                    $watermark = $this->files[$watermarkSrc];
+                    $watermarkOffsetX = max(round(($width - $watermark['width']) / 2), 0);
+                    $watermarkOffsetY = max(round(($height - $watermark['height']) / 2), 0);
+                    if ($width > $watermark['width'] && $height > $watermark['height']) {
+                        if (!isset($this->files[$watermarkSrc]['image'])) {
+                            $this->files[$watermarkSrc]['image'] = imagecreatefrompng($watermarkSrc);
+                            if ($this->files[$src]['type'] != 2) {
+                                $endOfWatermarkX = ($watermarkOffsetX + $watermark['width']);
+                                $endOfWatermarkY = ($watermarkOffsetY + $watermark['height']);
+                                $transparency = imagecolorat($this->files[$watermarkSrc]['image'], 1, 1);
+                                for ($x = $watermarkOffsetX; $x <= $endOfWatermarkX; $x++) {
+                                    for ($y = $endOfWatermarkY; $y <= $endOfWatermarkY; $y++) {
+                                        $rbg = imagecolorsforindex($finalImage, imagecolorat($finalImage, $x, $y));
+                                        if ($rbg['alpha'] == 127) {
+                                            imagesetpixel($this->files[$watermarkSrc]['image'],
+                                                          ($x - $watermarkOffsetX), ($y - $watermarkOffsetY),
+                                                          $transparency);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        $opacity = (isset($image['watermark']['opacity']) ? $image['watermark']['opacity'] : 14);
+                        imagecopymerge($finalImage, $this->files[$watermarkSrc]['image'], $watermarkOffsetX,
+                                       $watermarkOffsetY, 0, 0, $watermark['width'], $watermark['height'], $opacity);
+                    }
+                }
+            }
+
+            if (isset($image['stdout']) && $image['stdout']) {
+                $outputPath = null; //send to stdout
+            } else if (!isset($image['outputFolder']) && !isset($image['outputFile'])) { //overright original upload
+                $outputPath = $src;
+            } else {
+                $outputPath = (isset($image['outputFolder']) ? $image['outputFolder'] : '');
+                $outputPathLast = substr($outputPath, -1);
+                if ($outputPath && $outputPathLast != '/' && $outputPathLast != '\\') {
+                    $outputPath .= '/';
+                }
+                if (isset($image['outputFile'])) {
+                    $outputPath .= $image['outputFile'];
+                } else {
+                    $srcParts = explode('/', substr('\\', '/', $src));
+                    $outputPath .= last($srcParts);
+                }
+            }
+            $quality = ($this->files[$src]['type'] == 2 ? 75 : null);
+            $generateImageFunction = 'image' . $types[$this->files[$src]['type']];
+            $generateImageFunction($finalImage, $outputPath, $quality);
+            imagedestroy($finalImage);
+        }
+        imagedestroy($sourceImage);
+        return true;
+    }
+}

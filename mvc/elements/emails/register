@@ -1,0 +1,17 @@
+Bonjour,
+
+Activer de votre compte en cliquant sur le lien suivant
+
+<?php echo $lien; ?>
+
+(Si vous ne parvenez pas a cliquer sur le lien, recopiez-le dans la barre d'adresse de votre navigateur)
+
+
+Vous avez des questions ? Nous ecrire a l'adresse suivante <?php echo $email; ?>
+
+
+Bonne journee
+
+L'equipe de <?php echo $site; ?>
+
+<?php echo 'http://' . $_SERVER['HTTP_HOST']; ?>

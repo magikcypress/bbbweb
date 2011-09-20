@@ -1,0 +1,77 @@
+<?php
+/**
+ * Account-related functionality
+ */
+class addComponent {
+
+    /**
+     * Attempt to log a user in
+     *
+     * @param string $email
+     * @param string $pass
+     * @return mixed
+     */
+    public function login($email, $pass) {
+        $row = get::model('add')->validateLogin(trim($email), trim($pass));
+        if ($row) {
+            $this->_setLoginSession($row);
+        }
+        return $row;
+    }
+
+    /**
+     * Log out a user
+     */
+    public function logout() {
+        foreach ($this->_sessionKeys as $key) {
+           unset($_SESSION[$key]);
+        }
+    }
+
+    /**
+     * Verify typical required user data has been entered and is valid
+     *
+     * Required fields are fullname, email, address1, city, tel, country
+     * and if country is US then state and zip are also required
+     *
+     * @return array
+     */
+    public function validateRequired() {
+        $_POST = array_map('trim', $_POST);
+        if (!filter_var($_POST['email'], FILTER_VALIDATE_EMAIL)) {
+            $error['email'] = 'Email does not appear to be valid';
+        } else if (get::model('account')->accountExists($_POST['email'])) {
+            $error['email'] = 'There already is an account with that email';
+        }
+        $passLen = strlen($_POST['pass']);
+        if ($passLen < 4) {
+            $error['pass'] = 'Password is too short';
+        } else if ($passLen > 16) {
+            $error['pass'] = 'Password is too long';
+        } else if ($_POST['pass'] != $_POST['passconfirm']) {
+            $error['pass'] = 'Password and confirmation do not match, please retype both fields';
+        }
+        $requiredFields = array('fullname' => 'Name', 'address1' => 'Address', 'city' => 'City');
+        foreach ($requiredFields as $key => $label) {
+            if (strlen($_POST[$key]) < 3) {
+                $error[$key] = $label . ' is required';
+            }
+        }
+        if (strlen(preg_replace('/\D/', '', $_POST['tel'])) < 6) {
+            $error['tel'] = 'Telephone is required';
+        }
+        if ($_POST['country'] == 'US') {
+            if (!$_POST['state']) {
+                $error['state'] = 'State is required for those in the USA';
+            }
+            $_POST['zip'] = preg_replace('/\D/', '', $_POST['zip']);
+            $zipLen = strlen($_POST['zip']);
+            if ($zipLen != 5 && $zipLen != 9) {
+                $error['zip'] = 'Zip code is required for those in the USA';
+            } else if ($zipLen == 9) {
+                $_POST['zip'] = substr($_POST['zip'], 0, 5) . '-' . substr($_POST['zip'], 5);
+            }
+        }
+        return (isset($error) ? $error : array());
+    }
+}

@@ -1,0 +1,55 @@
+<?php
+/**
+ * PayPal payment interface
+ */
+class paypalComponent {
+    /**
+     * Sets the configuration for the PayPal payment page
+     *
+     * @var array
+     */
+    public $config = array('rm' => 2, //2 - POST back payment info to the return URL, 0 = GET, 1 = no-return-data
+                           'undefined_quantity' => 0, //1 – allows buyers to specify the quantity.
+                           'no_note' => 1, //1 = hides notes box
+                           'no_shipping' => 1, //1 = no shipping prompt
+                           'cpp_headerborder_color' => '333333',
+                           'cpp_payflow_color' => '333333');
+
+    /**
+     * Additional configuration settings - the default values are dynamic so they cannot be set in the property default
+     */
+    public function __construct() {
+        $baseUrl = 'http://' . $_SERVER['HTTP_HOST'] . '/' . mvc::$controller;
+        $this->config = array_merge($this->config, array(
+            'cbt' => get::$config->SITE_NAME, //Sets "Return to Merchant" button text on PayPal Payment-Complete page
+            'return' => $baseUrl . '/complete', //post-payment URL
+            'notify_url' => $baseUrl . '/complete', //payment notification URL
+            'cancel_return' => $baseUrl, //payment cancelled URL
+            'shopping_url' => $baseUrl //continue browsing/return URL
+        ));
+    }
+
+    /**
+     * Flag to use sandbox (for testing) instead of live payment system
+     *
+     * @var boolean
+     */
+    public $useSandbox = false;
+
+    /**
+     * Send a user to the PayPal payment page
+     *
+     * @param array $fields
+     */
+    public function goToPay(array $fields = array()) {
+        $fields = array_merge($fields, $this->config, array(
+            'cmd' => '_cart',
+            'upload' => 1, //required to use 3rd party cart
+            'business' => get::$config->PAYPAL_EMAIL,
+            'rm' => 2, //2 - POST back payment info to the return URL, 0 = GET, 1 = no-return-data
+        ));
+        $subdomain = (!$this->useSandbox ? 'www' : 'sandbox');
+        $url = 'https://' . $subdomain . '.paypal.com/cgi-bin/webscr?' . http_build_query($fields);
+        load::redirect($url);
+    }
+}

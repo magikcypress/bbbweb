@@ -1,0 +1,37 @@
+<div class="span-23" style="text-align: center">
+
+<?php
+
+    $lang = get::component('lang')->Lang();
+
+    echo $html->h1($lang['mot_passe_perdu']);
+
+    $profilAction = "";
+    if (!isset($profilAction))
+        $profilAction = get::url(array('ssl' => false));
+
+    if(!empty($_POST['password']) && !empty($_POST['confirm_password'])) {
+        get::model('login')->initPassword($_POST['k'], md5($_POST['password']));
+        $error = 'Initialisation du mot de passe effectu&eacute;e';
+    }
+
+    if(isset($error) && !empty($error)) {
+        echo '<div class="errormessageb">' . $error . '</div><br/ ><br/ >';
+    }
+
+if(!empty($_GET['k'])) {
+    if(get::model('register')->ValidRegister($_GET['k'])) {
+
+    echo $form->open(array('action' => 'lost2', 'method' => 'post', 'alert' => 'Les champs marqués d\'un astérisque sont obligatoires' ));
+    echo $form->input(array('type' => 'password', 'name' => 'password', 'value' => '', 'label' => 'Mot de passe *'));
+    echo $form->input(array('type' => 'password', 'name' => 'confirm_password', 'value' => '', 'label' => 'Confirmer mot de passe *'));
+    echo $form->input(array('type' => 'hidden', 'name' => 'k', 'value' => $_GET['k']));
+    echo $form->input(array('type' => 'submit','name' => 'submit', 'value' => $lang['envoyer']));
+    echo $form->close();
+
+    }
+}
+    
+?>
+
+</div>

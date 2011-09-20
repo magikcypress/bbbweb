@@ -1,0 +1,23 @@
+K 25
+svn:wc:ra_dav:version-url
+V 44
+/bbbwebclient/!svn/ver/44/vork/webroot/media
+END
+test4.mp4
+K 25
+svn:wc:ra_dav:version-url
+V 54
+/bbbwebclient/!svn/ver/44/vork/webroot/media/test4.mp4
+END
+test4.webm
+K 25
+svn:wc:ra_dav:version-url
+V 55
+/bbbwebclient/!svn/ver/44/vork/webroot/media/test4.webm
+END
+test4.ogv
+K 25
+svn:wc:ra_dav:version-url
+V 54
+/bbbwebclient/!svn/ver/44/vork/webroot/media/test4.ogv
+END

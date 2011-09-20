@@ -1,0 +1,33 @@
+<?php
+
+    get::$title = 'Cron background pour création de salle';
+// Cron pour voir si une salle a besoin d'être ouverte
+// wget http://vork/app/cron -O /dev/null
+
+    foreach ($cron as $id_groupe) {
+//        echo $id_groupe['date_debut'];
+//        echo '<br />';
+//        echo date('Y-m-d h:i:s');
+//        echo '<br />';
+        if(strtotime($id_groupe['date_debut']) <= strtotime(date('Y-m-d h:i:s'))) {
+        $parametres = get::model()->getPara();
+        $name = "Moderateur";
+        // Creation de la salle sur BBB
+        $return['create_room'] = get::component('bbbapi')->createMeetingArray( $name, $id_groupe['nom'], $parametres[1]['bienvenue'], $parametres[1]['codevip'], $parametres[1]['numero_tel'], uniqid(), uniqid(), $parametres[1]['clebbb'], $parametres[1]['urlbbb'], $parametres[1]['urlbbbdefaut'] );
+        }
+    }
+
+/* Stat bandepassante */
+$dir = "../../../logs";
+if(is_dir($dir)) {
+    $date_day = date('Ymdhis');
+    $cmd = 'vnstati -s -i eth0 -o ' . $dir . '/statss' . $date_day . '.png';
+    echo $cmd;
+    exec( $cmd );
+
+    $cmd = 'vnstati -h -i eth0 -o ' . $dir . '/statsh' . $date_day . '.png';
+    exec( $cmd );
+
+    $cmd = 'vnstati -m -i eth0 -o ' . $dir . '/statsm' . $date_day . '.png';
+    exec( $cmd );
+}

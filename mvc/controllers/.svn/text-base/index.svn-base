@@ -1,0 +1,39 @@
+<?php
+/**
+ * This controller loads automatically when controller is not defined explicitly in the URL
+ */
+class indexController {
+
+    /**
+     * The index method loads automatically when the action is not defined explicitly in the URL
+     *
+     * @return array
+     */
+    public function index() {
+        get::$title = 'Bienvenue sur bbb';
+        if(isset($_POST['email']) && !empty($_POST['email'])) {
+            // test si le compte existe
+            get::component('login')->checkLogin('/app');
+            $return['errors'] = $_POST['errors']['login'];
+            return $return;
+        }
+        if (isset($_POST['logout'])) {
+            get::component('login')->logout();
+            load::redirect('/'); //removes POST values
+            return;
+        }
+        if (isset($_GET['forgotPassword'])) {
+            return get::component('login')->forgotPassword();
+        }
+    }
+
+    public function register() {
+        get::$title = 'Enregistrer vous - Etape 1';
+
+    }
+
+    public function register2() {
+        get::$title = 'Enregistrer vous - Etape final';
+
+    }
+}

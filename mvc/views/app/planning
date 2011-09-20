@@ -1,0 +1,102 @@
+<?php
+    get::$title = 'Ajouter des salles en attentes';
+    echo $html->h1('Gérer le planning');
+    include("menu");
+?>
+
+<div class="span-12">
+
+<?php
+$profilAction = '/app/planning/' . $_SESSION['email'] . '/addPlanning';
+if (!isset($profilAction)) {
+    $profilAction = get::url(array('ssl' => false));
+}
+
+    echo $html->h2('Liste des salles en attente');
+
+    if(!empty($errors_active))
+        echo '<div class="errormessageb">' . $errors_active . '</div>';
+
+    if (isset($planning)) {
+        echo '<ul>';
+        foreach ($planning as $id_planning) {
+            echo '<li class="item">
+                    <div class="date"><strong>Date début</strong> : ' . get::component('date')->datetime_us_2_fr($id_planning['date_debut']) . '<br />
+                        <strong>Date fin</strong> : ' . get::component('date')->datetime_us_2_fr($id_planning['date_fin']) . '<br />';
+            if(!empty($id_planning['open_salle']))
+            echo '<strong>Cette salle a une ouverture programmée</strong><br />';
+            echo '</div><br />
+                    <strong>Nom :</strong> ' . $id_planning['nom'] . '<br />';
+            if(!empty($id_planning['descriptif']))
+            echo '<strong>Descriptif</strong><br /> ' . $id_planning['descriptif'] . '<br />';
+            
+            echo '<div style="text-align: right;"><a href="/app/planning/Activate/' . $id_planning['nom'] . '" title="Créer salle"><img src="../../images/control_play.png" alt="Créer salle" /></a>
+             <a href="/app/supprimer/planning/' . $id_planning['id_planning'] . '" id="supprimer" onclick="supprimer()" title="Supprimer"><img src="../../images/delete.png" alt="Supprimer" /></a></div></li>';
+            echo '<hr />';
+        }
+        echo '</ul>';
+    }else {
+            echo '<div class="errormessage">Aucune salle n\'est créer.<br /> Vous pouvez en créer depuis le formulaire ci dessous</div>';
+    }
+
+    $nb_salle = get::model('divers')->getSalleUser($_SESSION['id_utilisateur']);
+    $nb_salle_max = get::model('consommation')->getMaxSalle($_SESSION['id_tarif']);
+    if($nb_salle['nb_salle'] <= $nb_salle_max['max_salle']) {
+
+    echo $html->h2('Créer un salle');
+
+    if(!empty($errors))
+        echo '<div class="errormessageb">' . $errors . '</div>';
+
+    echo $form->open(array('action' => $profilAction, 'method' => 'post', 'alert' => 'Les champs marqués d\'un astérisque sont obligatoires'));
+
+    echo $form->input(array('type' => 'text', 'name' => 'nom', 'value' => '', 'label' => 'Nom de la salle *'));
+
+    echo '<span class="horloge">';
+    $args = array(
+    'name' => 'date_debut',
+    'time' => array('heure', 'minute', 'ampm'),
+    'annee' => array('start' => '2011', 'end' => '2012'),
+    'value' => array('jour' => date('d'), 'mois' => date('m'), 'annee' => date('Y'), 'heure' => date('h'), 'minute' => date('i')),
+    'label' => 'Date d\'ouverture'
+    );
+    echo $form->dateSelect($args);
+    $args = array(
+    'name' => 'date_fin',
+    'time' => array('heure', 'minute', 'ampm'),
+    'annee' => array('start' => '2011', 'end' => '2012'),
+    'value' => array('jour' => date('d'), 'mois' => date('m'), 'annee' => date('Y'), 'heure' => date('h'), 'minute' => date('i')),
+    'label' => 'Date de fermeture'
+    );
+    echo $form->dateSelect($args);
+    echo '</span>';
+    
+    echo $form->input(array('type' => 'textarea', 'name' => 'descriptif', 'value' => '', 'id' => 'descriptif', 'wysiwyg' => false));
+    echo '<p><input type="checkbox" name="open_salle" id="open_salle" value="1" /> Ouverture de la salle programmée</p>';
+    echo $form->input(array('type' => 'submit','name' => 'submit', 'value' => 'Creer'));
+    echo $form->close();
+
+    } else {
+        echo '<div class="cadre-info"><p>Nombre de salle atteinte</a></p>
+                                    Vous pouvez <a href="/app/upgrade/' . $_SESSION['email']. '">upgrader votre compte</a> pour bénéficier de plus de salle.<br /></div>';
+    }
+
+?>
+
+</div>
+
+<span class="span-5">
+    <h4>Aide</h4>
+    <p>Vous pouvez cr&eacute;er des salles a l'avance.<br /><br />
+    Une fois les salles cr&eacute;es, vous n'avez rien &agrave; faire. Celle-ci se cr&eacute;er le jour pr&eacute;vu.<br /><br />
+    Vous avez la possibilit&eacute; de programmer vos salles jusqu'au 31/12/2012.</p>
+    
+</span>
+
+       <script type="text/javascript">
+            $("a#supprimer").click(function(){
+              resultat=window.confirm("Souhaitez vous vraiment supprimer ce groupe");
+              if(resultat == false)
+                  return false;
+            });
+        </script>

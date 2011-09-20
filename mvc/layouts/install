@@ -1,0 +1,37 @@
+<?php
+
+$head['title'] = get::htmlentities(get::$title);
+$head['meta'] = get::$meta;
+$head['css'] = '/css/blueprint/screen.css';
+$head['favicon'] = '/favicon.ico';
+$head['animatedFavicon'] = '/favicon.gif';
+//$head['metaheader']['X-UA-Compatible'] = 'IE=EmulateIE7';
+$head['head'][] = $html->css('/css/blueprint/perso.css', 'screen');
+$head['head'][] = $html->css('/css/blueprint/print.css', 'print');
+
+echo $html->header($head);
+echo $html->jsTools();
+
+echo '<div class="container" id="container">';
+
+echo '<div class="header">';
+
+        echo '<span class="span-14">';
+            $lien_accueil = (isset($_SESSION) && array_key_exists('email', $_SESSION)) ? get::$config->SITE_URL . 'app/' : get::$config->SITE_URL;
+            echo $html->link($lien_accueil, '<img src="/images/logo_web_bbb.png" alt="Logo BigBlueButton LegeardWeb" />');
+            echo $html->p('Webconférence Open-source');
+        echo '</span>';
+
+        echo '<br class="clear" />';
+
+echo '</div>';
+
+if (isset($alert)) {
+    echo $html->getNotifications($alert);
+}
+
+echo $view;
+
+
+echo '<br class="clear" />';
+echo '</div><!-- .container -->';

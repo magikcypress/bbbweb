@@ -1,0 +1,5 @@
+#These settings are equired for validator script to function
+#For non-Apache web servers you will need to set validator.js to be parsed by PHP to enable its usage
+<Files validator.js>
+ForceType application/x-httpd-php
+</Files>

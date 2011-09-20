@@ -1,0 +1,86 @@
+<?php
+/**
+ * Converts the procedural MS SQL class to object-oriented
+ */
+class mssql {
+    /**
+     * Database resource ID
+     * @var object
+     */
+    public $resource;
+
+    /**
+     * The database method used to sanitize user input strings
+     */
+    const ESCAPE_STRING = 'escapeString';
+
+    /**
+     * Creates a string sanitation method as it is missing in the MS SQL PHP extension
+     *
+     * @param string $var
+     * @return string
+     */
+    public function escapeString($var) {
+        return str_replace("'", "''", $var);
+    }
+
+    /**
+     * Alias for db2_exec() to update DB2 extension to use the modern naming convention
+     * and not require passing the connection to every statement via argument
+     *
+     * @param string $query
+     * @param array $options Optional
+     * @return resource
+     */
+    public function query($query, $options = null) {
+        return db2_exec($this->resource, $query, $options);
+    }
+
+    /**
+     * Connect to MS SQL
+     *
+     * @param string $host
+     * @param string $username
+     * @param string $passwd
+     * @param string $dbname Optional
+     * @param boolean $persistent Optional default is true
+     * @param boolean $newLink Optional default is null (equates to false)
+     */
+    public function __construct($host, $username, $password, $dbname = null, $persistent = true, $newLink = null) {
+        try {
+            $connect = 'mssql_' . ($persistent ? 'pconnect' : 'connect');
+            $this->resource = $connect($host, $username, $password, $dbname, $newLink);
+            if (!$this->resource) {
+                throw new Exception('Cannot connect to MS SQL');
+            }
+        } catch (Exception $e) {
+            $this->error = $e->getMessage();
+        }
+        if ($dbname) {
+            mssql_select_db($dbname, $this->resource);
+        }
+    }
+
+    /**
+     * Catch-all method allowing you to call any MS SQL function via camel-cap object-oriented syntax.
+     *
+     * From your models you could access:
+     *
+     * $this->db->fetchBatch()
+     * $this->db->fetchAssoc()
+     * $this->db->query()
+     * $this->db->freeStatement()
+     * $this->db->rowsAffected()
+     * $this->db->close()
+     * etc.
+     *
+     * @param string $name
+     * @param mixed $val
+     */
+    public function __call($name, $val) {
+        $name = strtolower('mssql_' . preg_replace('/[A-Z]/', '_$0', $name));
+        if (function_exists($name)) {
+            return call_user_func_array($name, $val);
+        }
+    }
+}

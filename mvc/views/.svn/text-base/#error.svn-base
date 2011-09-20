@@ -1,0 +1,33 @@
+<?php
+if (isset($is404) && $is404) {
+    header('HTTP/1.0 404 Not Found');
+}
+echo '<h1 class="errormessage">' . get::$title . '</h1>';
+
+echo $html->h2('Please try and search for what you are looking for:');
+echo $html->cssInline('#goog-wm {}
+#goog-wm h3.closest-match {}
+#goog-wm h3.closest-match a {}
+#goog-wm h3.other-things {}
+#goog-wm ul li {}
+#goog-wm li.search-goog {display: block;}');
+if (isset($_SERVER['HTTP_HOST'])) {
+    echo $html->jsInline('var GOOG_FIXURL_LANG = "en"; var GOOG_FIXURL_SITE = "http://' . $_SERVER['HTTP_HOST'] . '/";');
+}
+echo $html->js('http://linkhelp.clients.google.com/tbproxy/lh/wm/fixurl.js');
+
+if (DEBUG_MODE || get::$config->isSuperuser()) {
+    if (!isset($errorType)) {
+        $errorType = 'Error';
+    }
+    if (!isset($controller)) {
+        $controller = mvc::$controller;
+    }
+    if (!isset($action)) {
+        $controller = mvc::$action;
+    }
+    echo $html->div($errorType . ' ' . $controller . '::' . $action);
+    echo '<pre>';
+    print_r(self::$params);
+    echo '</pre>';
+}

@@ -1,0 +1,54 @@
+<?php
+/**
+ * Form data filter
+ */
+class filterComponent {
+    /**
+     * Replace deprecated font-sizes with accessibility-friendly sizes in CSS format
+     *
+     * @param mixed $size
+     * @return string
+     */
+    protected function _fontsizereplace($size) {
+        $sizes = array(-2 => 'xx-small', -1 => 'x-small', '+1' => 'small', '+2' => 'medium', '+3' => 'large',
+                       '+4' => 'x-large', 0 => 'xx-small', '1' => 'x-small', '2' => 'small', '3' => 'medium',
+                       '4' => 'large', '5' => 'x-large', '6' => 'x-large', '7' => 'x-large', '8' => 'x-large');
+        if (isset($sizes[$size[2]])) {
+            $size[2] = $sizes[$size[2]];
+        }
+        return '<span style="font-size:' . $size[2] . ';">';
+    }
+
+    /**
+     * Cleans up messy broken HTML and returns pristine code that is XHTML-valid
+     *
+     * Requires the PHP Tidy extension to be enabled, although it will work without it but clean up will
+     * be severly limited and it will not convert broken HTML into valid XHTML
+     *
+     * @param string $html
+     * @return string
+     */
+    public function cleanHtml($html) {
+        $html = preg_replace('/(<font .*?color="(.*?)".*?'.'>)/mi', '$1<span style="color:$2;">', $html);
+        $html = preg_replace_callback('/(<font .*?size="(.*?)".*?'.'>)/mi', array($this, '_fontsizereplace'), $html);
+        $deprecated = array('</font>' => '</span>',
+                            '<center>' => '<div style="text-align:center;">', '</center>' => '</div>',
+                            '<strike>' => '<span style="text-decoration:line-through;">', '</strike>' => '</span>',
+                            '<s>' => '<span style="text-decoration:line-through;">', '</s>' => '</span>',
+                            '<u>' => '<span style="text-decoration:underline;">', '</u>' => '</span>');
+        $html = str_ireplace(array_keys($deprecated), array_values($deprecated), $html);
+        if (extension_loaded('tidy')) {
+            $tidy = new tidy;
+            $phpopen = '|TIDY_PHP_OPEN|';
+            $phpclose = '|TIDY_PHP_CLOSE|';
+            $html = str_replace(array('<?', '?>'), array($phpopen, $phpclose), $html);
+            $tidy->parseString($html, array('show-body-only' => true, 'output-xhtml' => true, 'word-2000' => true,
+                                            'wrap' => 0, 'wrap-php' => false, 'hide-comments' => true,
+                                            'drop-font-tags' => true, 'logical-emphasis' => true));
+            $tidy->cleanRepair(); //the next line strips out placeholders and casts to string in the process
+            $html = trim(str_replace(array($phpopen, $phpclose), array('<?', '?>'), $tidy));
+        }
+        $html = preg_replace('/(<img (.*?) align="(.*?)"(.*?)'.'>)/mi', '<img $2 style="float:$3;"$4>', $html);
+        return $html;
+    }
+}

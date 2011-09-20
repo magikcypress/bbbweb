@@ -1,0 +1,13 @@
+<?php
+/**
+ * Activity room functionality
+ */
+class activityComponent {
+
+        public function liveActivity() {
+            /*echo '<?xml version="1.0"?>'."\r\n";
+            header('content-type: text/xml');
+            echo get::component('bbbapi')->getMeetings();*/
+        }
+        
+}

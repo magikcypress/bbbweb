@@ -1,0 +1,77 @@
+<?php
+/**
+ * Functions required by the login controller.
+ */
+class loginModel extends model  {
+
+    /**
+     * Table/collection name - only need to change this if you will be operating multiple Vork account instances
+     * on the same database
+     * @var string
+     */
+    protected $_table = 'utilisateur';
+
+    /**
+     * Database type to use
+     * @var string Either sql or mongo
+     */
+    protected $_db;
+
+    /**
+     * Sets $this->_db and if it is Mongo then it sets the MongoDB collection
+     */
+    public function __construct() {
+        $this->_db = 'sql';
+    }
+
+    /**
+     * Switchboard to route to either SQL or Mongo methods
+     *
+     * @param string $name
+     * @param array $args
+     */
+    public function __call($name, array $args) {
+        $name = '_' . $this->_db . ucfirst($name);
+        return call_user_func_array(array($this, $name), $args);
+    }
+    
+    /**
+     * The columns returned must include the data defined in the $_sessionKeys property of the account component
+     *
+     * @param string $email
+     * @param string $pass
+     * @return mixed Data array or Boolean false
+     */
+    protected function _sqlValidateLogin($email, $pass) {
+        $sql = 'select * from ' . $this->_table . ' where email=' . $this->db->cleanString($email)
+             . ' and mot_passe=md5(' . $this->db->cleanString($pass) .')';
+        $res = $this->db->query($sql);
+        return $res->fetch_assoc();
+    }
+
+    /**
+     * Returns a users password if a record exists for them
+     *
+     * @param string $email
+     * @return mixed Password string or Boolean false
+     */
+    protected function _sqlRetrievePass($email) {
+        $sql = 'select mot_passe from ' . $this->_table . ' where email=' . $this->db->cleanString($email);
+        $res = $this->db->query($sql);
+        $pass = $res->fetch_row();
+        return ($pass ? current($pass) : false);
+    }
+
+    /**
+     * Checks if there is already an account registered to an email
+     *
+     * @param string $email
+     * @return boolean
+     */
+    protected function _sqlAccountExists($email) {
+        $sql = 'select email from ' . $this->_table . ' where email=' . $this->db->cleanString($email);
+        $res = $this->db->query($sql);
+        return (boolean) $res->fetch_row();
+    }
+
+}

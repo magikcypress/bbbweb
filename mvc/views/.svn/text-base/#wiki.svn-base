@@ -1,0 +1,4 @@
+<?php
+//removing this view will break the get::component('wiki')->wiki() method but you can still get the same functionality
+//via the get::component('wiki')->getWiki() method as long as your view will explicitely load the wiki element
+load::element('wiki');
