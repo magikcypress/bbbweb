@@ -1,0 +1,19 @@
+#It is safe to remove this file if your web-server document-root is pointing to the /webroot subdirectory.
+
+#This file is needed for proper framework operation in an evironment that does not have a configurable web-root
+#like shared-hosting. If support for .htaccess files and mod-rewrite is not possible in your environment (non-Apache)
+#then you will need to make the equivalent settings using whatever utilities the host provides.
+
+Allow from all
+
+<IfModule mod_rewrite.c>
+    RewriteEngine on
+    Options +FollowSymLinks
+    RewriteRule \.(svn|cvs|git|htaccess|htpasswd) - [L,NC,F]
+    RewriteCond %{DOCUMENT_ROOT}/webroot/%{REQUEST_URI} -f [OR]
+    RewriteCond %{DOCUMENT_ROOT}/webroot/%{REQUEST_URI} -l
+    RewriteRule  ^(.+) webroot/$1 [L,QSA]
+
+    #not an actual file, send MVC request to Vork
+    RewriteRule ^.*$ webroot/vork [QSA]
+</IfModule>

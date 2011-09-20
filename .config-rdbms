@@ -1,0 +1,188 @@
+<?php
+/**
+ * Change mysqlabstract in BOTH TWO places below to extend whichever PHP database extension that you will use
+ *
+ * For PostgreSQL/PGSQL use: postgresql
+ * For Oracle OCI8 use: oracle
+ * For MS SQL use: mssql
+ * For IBM DB2 use: db2
+ * For Sybase use: sybase
+ * For SQLite use: sqlite3abstract
+ * For MySQL (the default) or Amazon RDS use: mysqlabstract
+ * To use the older [deprecated] "mysql" PHP extension (instead of newer "mysqli") adjust the /sql/mysqlabstract file
+ */
+require '../sql/mysqlabstract';
+
+class db extends mysqlabstract {
+    /**
+     * Date format used by your database
+     * This is set here for convenience and not required if you will not use it within your models
+     */
+    const DATE_FORMAT = '%b %e, %Y';
+
+    /**
+     * Date/time format used by your database
+     * This is set here for convenience and not required if you will not use it within your models
+     */
+    const DATETIME_FORMAT = '%b %e, %Y %l:%i %p';
+
+    /**
+     * Public interface to DATE_FORMAT constant
+     * @toDo Remove this once PHP 5.3 becomes more mainstream
+     * @deprecated If you are on PHP 5.3+ you can access the db::DATE_FORMAT constant directly & remove this method
+     * @return string
+     */
+    public function getDateFormat() {
+        return self::DATE_FORMAT;
+    }
+
+    /**
+     * Public interface to DATETIME_FORMAT constant
+     * @toDo Remove this once PHP 5.3 becomes more mainstream
+     * @deprecated If you are on PHP 5.3+ you can access the db::DATETIME_FORMAT constant directly & remove this method
+     * @return string
+     */
+    public function getDateTimeFormat() {
+        return self::DATETIME_FORMAT;
+    }
+
+    /**
+     * This is technically a constant but it is set as a public variable to give the option of turning off
+     * surrounding quotes by simply setting to an empty string from within the code.
+     *
+     * @var string
+     */
+    public $surroundingQuote = "'";
+
+    /**
+     * Prepares a string or an array of strings for use within a SQL query
+     * $this->db->cleanString("Invalid chars ain't gonna break your SQL!")
+     *
+     * @param mixed $var Can be a string or an array of strings (key-associations will be maintained)
+     * @return mixed Returns the same format sent to it in the arg (string or array of strings)
+     */
+    public function cleanString($var) {
+        if (!is_array($var)) {
+            $var = $this->surroundingQuote . $this->{self::ESCAPE_STRING}($var) . $this->surroundingQuote;
+        } else {
+            foreach ($var as $key => $val) {
+                $var[$key] = $this->cleanString($val);
+            }
+        }
+        return $var;
+    }
+
+    /**
+     * Direct replacement for query() that adds automatic value cleansing and substitution
+     *
+     * Uses the prepared-statement standard question-mark as the placeholder, eg.:
+     * $quantity = 7; $name = $_POST['name']; $id = 613; $color = 'blue';
+     * $sql = 'update widgets set quantity=?, name=? where id=? and color=?';
+     * $this->db->pquery($sql, $quantity, $name, $id, $color);
+     *
+     * Alternatively you can send the parameters in an array:
+     * $params = array($quantity, $name, $id, $color);
+     * $this->db->pquery($sql, $params);
+     *
+     * Or even mix the two formats:
+     * $params = array($name, $id);
+     * $this->db->pquery($sql, $quantity, $params, $color);
+     *
+     * @param string $sql
+     * @param mixed Optional one or more arguments for SQL substitution, can be scalar or an array of scalar values
+     * @return object
+     */
+    public function pquery($sql /* polymorphic */) {
+        $args = func_get_args();
+        array_shift($args); //remove SQL string
+        $replacementCount = substr_count($sql, '?');
+        if ($replacementCount && $args) {
+            $params = array();
+            foreach ($args as $arg) {
+                if (!is_array($arg)) {
+                    $params[] = $arg;
+                } else {
+                    $params = array_merge($params, $arg);
+                }
+            }
+            if (count($params) < $replacementCount) {
+                $params = array_pad($params, $replacementCount, null);
+            }
+            if ($params) {
+                $params = $this->cleanString($params);
+                $x = -1;
+                $sql = preg_replace('/\?/e', '$params[++$x]', $sql);
+            }
+        }
+        return $this->query($sql);
+    }
+
+    /**
+     * Buffer to store the cols after extracting in the insertSql() method
+     * @var mixed
+     */
+    protected $_cols;
+
+    /**
+     * Builds the insert SQL string based on an array of values.
+     *
+     * ANSI-standard insert syntax should work with all databases.
+     *
+     * Argument array keys are:
+     * table - required
+     * vals - required, can be a string (for inserting into one column only), an array of column values
+     *        or an array containing multiple subarrays of column values to insert multiple rows with one query.
+     *        The array keys in the vals argument can be set to correspond to the column names as an alternative
+     *        to setting the cols argument (below.) If both are set, cols takes precedence.
+     * cols - optional, it is highly recommended to always include this to ensure that nothing breaks if
+     *        you modify the table structure
+     *
+     * @param array $args
+     * @return string
+     */
+    public function insertSql(array $args) {
+        $sql = 'insert into ' . $args['table'];
+        if (!isset($args['cols']) && is_array($args['vals'])) {
+            if (key($args['vals']) !== 0) {
+                $args['cols'] = array_keys($args['vals']);
+            } else if (is_array($args['vals'][0]) && key($args['vals'][0]) !== 0) {
+                $args['cols'] = array_keys($args['vals'][0]);
+            }
+        }
+        if (isset($args['cols'])) {
+            $this->_cols = $args['cols'];
+            $sql .= ' (' . (is_array($args['cols']) ? implode(', ', $args['cols']) : $args['cols']) . ')';
+        }
+        $sql .= ' values (';
+        if (!is_array($args['vals'])) {
+            $sql .= $args['vals'];
+        } else if (!is_array(current($args['vals']))) {
+            $sql .= implode(', ', $args['vals']);
+        } else {
+            foreach ($args['vals'] as $key => $valueArray) {
+                $args['vals'][$key] = implode(', ', $valueArray);
+            }
+            $sql .= implode('), (', $args['vals']);
+        }
+        $sql .= ')';
+        return $sql;
+    }
+}
+
+/**
+ * Configuration of the debug functionality. When debug mode is not enabled this does not get loaded and has no effect
+ */
+class dbDebug extends db {
+    /**
+      * If your database uses the method "query" with the same function signature (the same arguments) as
+      * this method then nothing needs to change here, otherwise in order to see your SQL queries when in
+      * debug mode you will need to change the method name and signature to the equivelent method that is
+      * utilized by your DB extension.
+      */
+    public function query($query, $arg2 = null) {
+        $timeStart = debug::microtime();
+        $return = (!$arg2 ? parent::query($query) : parent::query($query, $arg2));
+        debug::logQuery($query, (number_format(debug::microtime() - $timeStart, 5)), $this->error);
+        return $return;
+    }
+}
